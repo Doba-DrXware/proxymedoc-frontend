@@ -1,0 +1,14 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad-ceft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6C5CE7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5F3DC4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="95" fill="url(#grad-ceft)" stroke="white" stroke-width="3"/>
+  
+  <circle cx="100" cy="100" r="35" fill="white" stroke="none"/>
+  <path d="M 85 85 L 115 115 M 115 85 L 85 115" stroke="#5F3DC4" stroke-width="3" stroke-linecap="round"/>
+  
+  <text x="100" y="160" font-size="14" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial">CEFT</text>
+</svg>

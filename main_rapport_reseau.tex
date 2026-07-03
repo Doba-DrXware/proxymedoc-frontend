@@ -1,0 +1,1606 @@
+\documentclass[12pt,a4paper]{report}
+
+% ==========================================
+% PACKAGES ET CONFIGURATION DE BASE
+% ==========================================
+\usepackage[utf8]{inputenc} % 
+\usepackage[T1]{fontenc} % 
+\usepackage[french]{babel} % 
+\usepackage{geometry} % 
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm} % 
+\usepackage{amsmath,amssymb,amsfonts} % 
+\usepackage{graphicx} % 
+\usepackage{array} % 
+\usepackage{longtable} 
+\usepackage{booktabs} % 
+\usepackage{enumitem} 
+\usepackage{float} % 
+\usepackage{tabularx} % 
+\usepackage{setspace} % 
+\usepackage{microtype} % 
+\usepackage{lmodern} % 
+\usepackage{listings}   % Blocs de code (intégré depuis envi_dev__implementation)
+\usepackage{verbatim}   % Blocs verbatim (intégré depuis envi_dev__implementation)
+
+% ==========================================
+% GESTION DES COULEURS, TITRES ET ENCADRÉS
+% ==========================================
+\usepackage[table,dvipsnames]{xcolor} % 
+\usepackage{titlesec} % 
+\usepackage[most]{tcolorbox} % 
+
+% Charte graphique (Extraite du rapport Campharma) 
+\definecolor{VertPharma}{HTML}{1E4D92}     % Vert médical/pharmacie principal % 
+\definecolor{BleuCiel}{HTML}{1E4D92}       % Bleu ciel pour les sous-sections et liens % 
+\definecolor{BlancCasse}{HTML}{F8F9F9}     % Fond blanc cassé très léger pour les blocs % 
+\definecolor{GrisTexte}{HTML}{2C3E50}      % Gris foncé pour le texte % 
+
+% --- Configuration des couleurs et du style des blocs de code ---
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{codegreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+\lstset{style=mystyle}
+
+% Application de la charte graphique sur les titres 
+\titleformat{\chapter}{\color{VertPharma}\normalfont\Huge\bfseries}{\thechapter}{1em}{} 
+\titleformat{\section}{\color{VertPharma}\normalfont\Large\bfseries}{\thesection}{1em}{} 
+\titleformat{\subsection}{\color{BleuCiel}\normalfont\large\bfseries}{\thesubsection}{1em}{} 
+\titleformat{\subsubsection}{\color{GrisTexte}\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{} 
+
+% Configuration des liens hypertextes 
+\usepackage{hyperref} % 
+\hypersetup{ % 
+	colorlinks=true, % 
+	linkcolor=VertPharma, % 
+	citecolor=BleuCiel, % 
+	filecolor=magenta, %       
+	urlcolor=BleuCiel, % 
+} % 
+
+% Style pour un bloc de résumé ou de remarque (Réseau/HTTP) % [cite: 1, 2]
+\newtcolorbox{boxreseau}{ % [cite: 2, 77]
+	colback=BlancCasse, % [cite: 2, 77]
+	colframe=BleuCiel, % [cite: 2, 77]
+	arc=4mm, % [cite: 2, 77]
+	boxrule=1pt, % [cite: 2, 77]
+	left=15pt, right=15pt, top=10pt, bottom=10pt % [cite: 2, 77]
+} % [cite: 2, 77]
+
+\onehalfspacing % Interligne 1.5 pour aérer le document % [cite: 2, 77]
+
+% ==========================================
+% DÉBUT DU DOCUMENT
+% ==========================================
+\begin{document} % [cite: 2, 77]
+	
+	\color{GrisTexte} % Application de la couleur de texte plus douce % [cite: 2, 77]
+	
+	%\chapter*{Résumé / Abstract} 
+	\addcontentsline{toc}{chapter}{Résumé / Abstract} 
+	
+	\tableofcontents % [cite: 2, 77]
+    \listoffigures 
+    \addcontentsline{toc}{chapter}{Table des figures}
+	\newpage 
+	
+	\listoftables 
+    \addcontentsline{toc}{chapter}{Liste des tableaux}
+	\newpage 
+	
+	\chapter*{Liste des abréviations} 
+	\addcontentsline{toc}{chapter}{Liste des abréviations} 
+    \noindent\textbf{Keywords:} digital pharmaceutical platform, PWA, drug search, geolocation, Spring Boot, Next.js, ILP, client-server architecture, JWT, Cameroon.
+
+    
+	\begin{longtable}{p{3.5cm} p{10.5cm}}
+		\toprule
+		\textbf{Abréviation} & \textbf{Signification} \\
+		\toprule
+		\endhead
+		2FA       & Double Authentification (\textit{Two-Factor Authentication}) \\[4pt]
+		API       & Interface de Programmation d'Application (\textit{Application Programming Interface}) \\[4pt]
+		BF        & Besoins Fonctionnels \\[4pt]
+		CPU       & Unité Centrale de Traitement (\textit{Central Processing Unit}) \\[4pt]
+		CORS      & Partage de Ressources entre Origines Multiples (\textit{Cross-Origin Resource Sharing}) \\[4pt]
+		CSS       & Feuilles de Style en Cascade (\textit{Cascading Style Sheets}) \\[4pt]
+		DTO       & Objet de Transfert de Données (\textit{Data Transfer Object}) \\[4pt]
+		GPS       & Système de Positionnement Global (\textit{Global Positioning System}) \\[4pt]
+		HTTP      & Protocole de Transfert Hypertexte (\textit{HyperText Transfer Protocol}) \\[4pt]
+		HTTPS     & Protocole de Transfert Hypertexte Sécurisé (\textit{HyperText Transfer Protocol Secure}) \\[4pt]
+		HTML      & Langage de Balisage Hypertexte (\textit{HyperText Markup Language}) \\[4pt]
+		HTML5     & Langage de Balisage Hypertexte --- version 5 \\[4pt]
+		IDE       & Environnement de Développement Intégré (\textit{Integrated Development Environment}) \\[4pt]
+		ILP       & Programme en Nombres Entiers (\textit{Integer Linear Program}) \\[4pt]
+		JPA       & Interface de Persistance Java (\textit{Java Persistence API}) \\[4pt]
+		JSON      & Notation Objet JavaScript (\textit{JavaScript Object Notation}) \\[4pt]
+		JWT       & Jeton Web JSON (\textit{JSON Web Token}) \\[4pt]
+		LTS       & Version à Long Terme (\textit{Long-Term Support}) \\[4pt]
+		MCD       & Modèle Conceptuel de Données \\[4pt]
+		MLD       & Modèle Logique de Données \\[4pt]
+		NGN       & Naira Nigérian (devise) \\[4pt]
+		OAuth2    & Protocole d'Autorisation Ouvert --- version 2 (\textit{Open Authorization 2}) \\[4pt]
+		ORM       & Mapping Objet-Relationnel (\textit{Object-Relational Mapping}) \\[4pt]
+		PDF       & Format de Document Portable (\textit{Portable Document Format}) \\[4pt]
+		PLNE      & Programme Linéaire en Nombres Entiers \\[4pt]
+		PostGIS   & Extension Géospatiale pour PostgreSQL \\[4pt]
+		PWA       & Application Web Progressive (\textit{Progressive Web App}) \\[4pt]
+		RAM       & Mémoire Vive (\textit{Random Access Memory}) \\[4pt]
+		Redis     & Serveur de Dictionnaire Distant (\textit{Remote Dictionary Server}) \\[4pt]
+		RESP      & Protocole de Sérialisation Redis (\textit{REdis Serialization Protocol}) \\[4pt]
+		REST      & Transfert d'État Représentationnel (\textit{Representational State Transfer}) \\[4pt]
+		SEO       & Optimisation pour les Moteurs de Recherche (\textit{Search Engine Optimization}) \\[4pt]
+		SGBD      & Système de Gestion de Base de Données \\[4pt]
+		SQL       & Langage de Requête Structuré (\textit{Structured Query Language}) \\[4pt]
+		SSD       & Disque à État Solide (\textit{Solid-State Drive}) \\[4pt]
+		SSR       & Rendu Côté Serveur (\textit{Server-Side Rendering}) \\[4pt]
+		TLS/SSL   & Protocoles de Sécurité de la Couche Transport (\textit{Transport Layer Security / Secure Sockets Layer}) \\[4pt]
+		TOTP      & Mot de Passe à Usage Unique Temporel (\textit{Time-based One-Time Password}) \\[4pt]
+		UML       & Langage de Modélisation Unifié (\textit{Unified Modeling Language}) \\[4pt]
+		URL       & Localisateur Uniforme de Ressource (\textit{Uniform Resource Locator}) \\[4pt]
+		XAF       & Franc CFA d'Afrique Centrale (devise) \\[4pt]
+		\bottomrule
+	\end{longtable}
+    
+    \newpage % [cite: 2, 77]77
+    \section*{Résumé}
+	L'accès aux médicaments demeure un défi majeur dans le contexte camerounais, où les patients sont contraints de parcourir de nombreuses pharmacies avant de trouver le produit recherché, sans disposer d'aucune information préalable sur les stocks disponibles. Face à cette problématique, nous proposons dans ce rapport la conception et le développement de \textbf{ProxyMédoc}, une plateforme numérique de type \textit{Progressive Web App} (PWA) visant à centraliser et à faciliter l'accès à l'information pharmaceutique.
+
+	Nous avons structuré notre travail en trois grandes parties. Dans un premier temps, nous avons conduit une analyse des besoins fonctionnels et non fonctionnels du système, en identifiant les trois acteurs principaux --- le Patient, le Pharmacien et l'Administrateur --- et en formalisant leurs interactions au moyen de cas d'utilisation. Dans un second temps, nous avons élaboré une conception détaillée reposant sur une modélisation UML complète (diagramme de classes, modèle conceptuel de données MCD, modèle logique de données MLD) ainsi qu'un modèle mathématique d'optimisation formulé comme un Programme Linéaire en Nombres Entiers (PLNE), dont l'objectif est de minimiser simultanément le coût d'achat des médicaments et la distance parcourue par le patient. Enfin, nous avons présenté la réalisation technique de la solution, fondée sur une architecture client-serveur découplée mettant en \oe{}uvre le framework \textbf{Spring Boot} côté backend, le framework \textbf{Next.js} côté frontend, et un Système de Gestion de Base de Données (SGBD) relationnel enrichi de capacités géospatiales via PostGIS. La sécurité de l'ensemble est assurée par une authentification sans état reposant sur OAuth2, JWT et la double authentification (2FA).
+
+	Les résultats obtenus montrent qu'une telle plateforme est techniquement réalisable et répond de manière concrète aux besoins identifiés, notamment la recherche multicritère de médicaments par nom et proximité géographique, la gestion de panier résiliente au mode hors-ligne, et la soumission électronique d'ordonnances.
+
+	\vspace{0.5cm}
+	\noindent\textbf{Mots-clés :} plateforme pharmaceutique numérique, PWA, recherche de médicaments, géolocalisation, Spring Boot, Next.js, PLNE, architecture client-serveur, JWT, Cameroun.
+
+	\bigskip
+	\bigskip
+    \newpage
+    
+	\section*{Abstract}
+	Access to medicines remains a major challenge in the Cameroonian context, where patients are often forced to visit multiple pharmacies without any prior information on drug availability. To address this issue, we present in this report the design and development of \textbf{ProxyMédoc (Campharma)}, a \textit{Progressive Web App} (PWA) aimed at centralizing and streamlining access to pharmaceutical information.
+
+	Our work is organized in three main parts. First, we conducted a thorough analysis of the system's functional and non-functional requirements, identifying three core actors --- the Patient, the Pharmacist, and the Administrator --- and formalizing their interactions through use cases. Second, we developed a detailed system design based on a comprehensive UML modeling approach (class diagram, Conceptual Data Model, Logical Data Model) along with a mathematical optimization model formulated as an Integer Linear Program (ILP), whose objective is to jointly minimize the total drug purchase cost and the travel distance for the patient. Finally, we describe the technical implementation of the solution, built on a decoupled client-server architecture using \textbf{Spring Boot} on the backend, \textbf{Next.js} on the frontend, and a relational Database Management System (DBMS) extended with geospatial capabilities through PostGIS. Security is enforced through stateless authentication based on OAuth2, JWT, and two-factor authentication (2FA).
+
+	The results demonstrate that such a platform is technically feasible and concretely addresses the identified needs, including multi-criteria drug search by name and geographic proximity, offline-resilient cart management, and electronic prescription submission.
+
+	\vspace{0.5cm}
+	
+	
+	% ------------------------------------------
+	% INTRODUCTION GÉNÉRALE
+	% ------------------------------------------
+	\chapter*{INTRODUCTION GÉNÉRALE} 
+	\addcontentsline{toc}{chapter}{INTRODUCTION GÉNÉRALE} 
+	L'évolution des technologies de l'information et de la communication a profondément transformé de nombreux secteurs d'activité, notamment celui de la santé. Aujourd'hui, les outils numériques jouent un rôle essentiel dans l'amélioration de l'accès aux services médicaux et pharmaceutiques. Cependant, dans plusieurs villes du Cameroun, les populations rencontrent encore des difficultés lorsqu'elles recherchent rapidement une pharmacie ou un médicament spécifique. Ces difficultés sont souvent liées au manque d'informations fiables sur la localisation des pharmacies, leurs horaires d'ouverture, les pharmacies de garde ainsi que la disponibilité réelle des médicaments.
+
+Face à cette problématique, il devient nécessaire de mettre en place des solutions informatiques capables de faciliter la communication entre les patients et les pharmacies tout en assurant un accès rapide aux informations essentielles. C'est dans cette optique qu'a été conçu le projet ProxyMédoc: Pharmacie à proximité.
+
+ProxyMédoc est une plateforme numérique qui permet aux utilisateurs de rechercher des médicaments, localiser des pharmacies, effectuer des réservations, soumettre des ordonnances médicales et gérer leurs achats à travers une interface simple et intuitive. La plateforme offre également aux pharmaciens des outils de gestion de leurs stocks et permet aux administrateurs de superviser l'ensemble du système.
+
+D'un point de vue technique, ce projet s'appuie sur une architecture réseau de type client-serveur permettant la communication entre les différents acteurs du système et une base de données centralisée garantissant la disponibilité et la mise à jour des informations en temps réel.
+	
+	
+	% ==========================================
+	% PARTIE I - ANALYSE ET SPÉCIFICATION DES BESOINS
+	% ==========================================
+	\part{ANALYSE ET SPÉCIFICATION DES BESOINS} % [cite: 2, 3]
+	
+	% ------------------------------------------
+	% Chapitre 1 — Présentation du projet
+	% ------------------------------------------
+	\chapter{Présentation du projet} % [cite: 3, 77]
+	
+	\section{Contexte général et Problématique} % [cite: 3, 77]
+	Avec l'évolution des technologies numériques, les utilisateurs recherchent des solutions rapides et efficaces pour accéder aux services de santé. % [cite: 3, 77]
+	Cependant, au Cameroun, l'accès à l'information pharmaceutique demeure encore difficile. % [cite: 4, 78]
+	Lorsqu'un patient a besoin d'un médicament, il doit souvent parcourir plusieurs pharmacies avant de trouver celle qui dispose du produit recherché. % [cite: 5, 79]
+	Cette situation entraîne une perte de temps considérable, des dépenses supplémentaires liées aux déplacements et parfois un retard dans la prise en charge médicale. % [cite: 6, 80]
+	Les difficultés deviennent encore plus importantes durant les périodes de garde, lorsque les pharmacies ouvertes sont peu nombreuses et difficiles à identifier. % [cite: 7, 81]
+	Par ailleurs, les informations relatives aux stocks de médicaments ne sont généralement pas accessibles au public. % [cite: 8, 82]
+	Les patients ignorent donc si le médicament recherché est disponible avant de se déplacer. % [cite: 9, 83]
+	Cette absence de visibilité entraîne de nombreux déplacements inutiles. % [cite: 10, 84]
+	
+	Face à ces difficultés, il apparaît nécessaire de développer une plateforme numérique permettant de centraliser les informations relatives aux pharmacies et à leurs stocks afin de faciliter l'accès aux médicaments. % [cite: 10, 84]
+	
+	\section{Objectifs du projet} % [cite: 11, 85]
+	L'objectif général du projet est de faciliter l'accès aux médicaments grâce à une plateforme numérique centralisée. % [cite: 11, 90]
+	De manière spécifique, ProxyMédoc (Campharma) vise à : % [cite: 12, 91]
+	\begin{itemize} % [cite: 12, 91]
+		\item \textbf{\color{VertPharma}Optimiser l'expérience utilisateur :} En offrant une interface ergonomique et facile d'utilisation, permettant aux utilisateurs de trouver rapidement les informations dont ils ont besoin, réduisant ainsi le temps de recherche et le stress. % [cite: 12, 91]
+		\item \textbf{\color{VertPharma}Améliorer la gestion pour les pharmacies :} En proposant un espace d'administration sécurisé où les pharmaciens peuvent mettre à jour leurs informations (horaires, gardes, stocks) de manière autonome et en temps réel, garantissant la fiabilité des données pour les utilisateurs. % [cite: 13, 92]
+		\item \textbf{\color{VertPharma}Favoriser la transparence :} En mettant l'information sur la disponibilité des médicaments mais aussi l'accès aux officines plus fluide. % [cite: 14, 93]
+		\item \textbf{\color{VertPharma}Renforcer la connectivité :} En établissant un lien numérique direct entre les patients et les pharmacies, facilitant la communication et l'accès aux services. % [cite: 15, 94]
+		\item \textbf{\color{VertPharma}Permettre la réservation de médicaments à distance ;} % [cite: 16, 95]
+		\item \textbf{\color{VertPharma}Faciliter la transmission électronique des ordonnances.} % [cite: 16, 95]
+	\end{itemize} % [cite: 17, 96]
+	
+	\subsection{Présentation de la solution ProxyMédoc} % [cite: 17, 85]
+	ProxyMédoc est une plateforme numérique conçue pour faciliter la recherche, la réservation et l'achat de médicaments auprès des pharmacies partenaires. % [cite: 17, 85]
+	La plateforme permet aux utilisateurs de rechercher un médicament, localiser une pharmacie, consulter la disponibilité des produits, transmettre une ordonnance médicale et effectuer une réservation avant leur déplacement. % [cite: 18, 86]
+	Les pharmaciens disposent d'un espace de gestion leur permettant de mettre à jour les médicaments disponibles et les informations relatives à leur pharmacie. % [cite: 19, 87]
+	Quant aux administrateurs, ils assurent la gestion globale du système ainsi que la supervision des pharmacies enregistrées. % [cite: 20, 88]
+	L'ensemble des informations est centralisé dans une base de données accessible via un réseau informatique sécurisé, garantissant la disponibilité et la mise à jour des données en temps réel. % [cite: 21, 89]
+	
+	\section{Périmètre du projet / Public Cible} % [cite: 22, 96]
+	Le projet ProxyMédoc s'adresse à un large éventail d'utilisateurs, chacun ayant des besoins spécifiques en matière d'accès aux services pharmaceutiques : % [cite: 22, 96]
+	\begin{itemize} % [cite: 22, 96]
+		\item \textbf{Le grand public :} Incluant les résidents locaux, les familles avec enfants, les personnes âgées et les individus ayant des besoins médicaux urgents, qui cherchent à localiser rapidement une pharmacie ouverte ou un médicament spécifique. % [cite: 22, 96]
+		\item \textbf{Les touristes et nouveaux arrivants :} Qui peuvent être désorientés par les systèmes locaux et nécessitent un outil simple pour trouver des services de santé essentiels. % [cite: 23, 97]
+		\item \textbf{Les professionnels de santé :} Tels que les médecins ou les infirmiers, qui peuvent avoir besoin de diriger leurs patients vers une pharmacie spécifique ou de vérifier la disponibilité d'un traitement. % [cite: 24, 98]
+		\item \textbf{Les pharmacies elles-mêmes :} En tant que partenaires, elles bénéficient d'une visibilité accrue et d'un outil de gestion simplifié pour communiquer leurs informations essentielles au public. % [cite: 25, 99]
+	\end{itemize} % [cite: 26, 100]
+	
+	% ------------------------------------------
+	% Chapitre 2 — Étude de l'existant
+	% ------------------------------------------
+	\chapter{Étude de l'existant} % [cite: 26, 100]
+	
+	\section{Solutions existantes} % [cite: 26, 100]
+	Avant la conception de ProxyMédoc, plusieurs solutions ont été étudiées afin d'identifier leurs limites et les améliorations possibles. % [cite: 26, 100]
+	\paragraph{Méthodes traditionnelles :} La majorité des patients utilisent encore les méthodes classiques consistant à se déplacer de pharmacie en pharmacie ou à contacter plusieurs établissements par téléphone avant de trouver le médicament recherché. % [cite: 27, 101]
+	Cette approche présente plusieurs inconvénients : % [cite: 28, 102]
+	\begin{itemize} % [cite: 28, 102]
+		\item Perte de temps ; % [cite: 28, 102]
+		\item Déplacements coûteux ; % [cite: 28, 102]
+		\item Absence d'information sur la disponibilité des médicaments ; % [cite: 29, 103]
+		\item Difficulté à identifier rapidement une pharmacie de garde. % [cite: 29, 103]
+	\end{itemize} % [cite: 30, 104]
+	
+	\paragraph{Solutions numériques généralistes :} Des plateformes comme Google Maps ou d'autres services de cartographie offrent une géolocalisation des pharmacies. % [cite: 30, 104]
+	Cependant, ces outils sont souvent incomplets ou imprécis concernant les horaires spécifiques de garde, la disponibilité des médicaments ou les services spécialisés. % [cite: 31, 105]
+	Ils ne disposent généralement pas d'une intégration directe avec les systèmes de gestion des stocks des pharmacies, ce qui limite leur utilité pour des informations en temps réel. % [cite: 32, 106]
+	\paragraph{Applications locales existantes :} Dans certaines régions, des initiatives locales ont pu voir le jour sous forme d'applications mobiles ou de sites web. % [cite: 33, 107]
+	Une analyse de ces solutions révélerait souvent des limitations en termes de couverture géographique, de fonctionnalités offertes, de maintenance des données ou d'interopérabilité avec un réseau plus large de pharmacies. % [cite: 34, 108]
+	
+	\section{Analyse critique} % [cite: 35, 109]
+	Une évaluation critique des solutions actuelles permet de dégager leurs inconvénients, en se concentrant sur les aspects techniques et fonctionnels : % [cite: 35, 109]
+	
+	\paragraph{Limites fonctionnelles} % [cite: 35, 109]
+	\begin{itemize} % [cite: 35, 109]
+		\item Absence de réservation de médicaments ; % [cite: 35, 109]
+		\item Absence de gestion centralisée des stocks ; % [cite: 36, 110]
+		\item Difficulté d'accès aux pharmacies de garde ; % [cite: 36, 110]
+		\item Manque d'interaction entre les patients et les pharmacies. % [cite: 37, 111]
+	\end{itemize} % [cite: 37, 111]
+	
+	\paragraph{Limites techniques} % [cite: 37, 111]
+	Sur le plan informatique, les systèmes existants ne reposent généralement pas sur une architecture centralisée permettant la synchronisation des données. % [cite: 37, 111]
+	Les informations sont souvent stockées de manière indépendante dans chaque pharmacie, ce qui complique leur mise à jour et leur partage en temps réel. % [cite: 38, 112]
+	
+	\section{Apports de ProxyMédoc} % [cite: 39, 113]
+	ProxyMédoc apporte une solution innovante grâce à une architecture client-serveur. % [cite: 39, 113]
+	Le système centralise les informations relatives aux pharmacies, aux médicaments et aux utilisateurs dans une base de données unique. % [cite: 40, 114]
+	Chaque pharmacie peut mettre à jour ses stocks à travers son espace dédié tandis que les utilisateurs consultent les informations actualisées en temps réel. % [cite: 41, 115]
+	Cette architecture offre plusieurs avantages : % [cite: 42, 116]
+	\begin{itemize} % [cite: 42, 116]
+		\item \textbf{Une architecture réseau centralisée et sécurisée :} Permettant une connexion fiable et sécurisée entre toutes les pharmacies partenaires et la plateforme centrale. % [cite: 42, 116]
+		Cela garantit une remontée d'informations rapide et une mise à jour instantanée des données. % [cite: 43, 117]
+		\item \textbf{Synchronisation des bases de données en temps réel :} Grâce à des API dédiées, ProxyMédoc permettra aux pharmacies de synchroniser automatiquement leurs informations (horaires, gardes, stocks indicatifs) avec la plateforme, assurant ainsi la fiabilité et l'actualité des données pour les utilisateurs. % [cite: 44, 118]
+		\item \textbf{Géolocalisation avancée :} Intégration de services de cartographie performants pour une localisation précise des pharmacies, avec des fonctionnalités de filtrage basées sur la disponibilité, les services offerts et la distance. % [cite: 45, 119]
+		\item Réservation de médicaments ; % [cite: 46, 120]
+		\item Transmission numérique des ordonnances ; % [cite: 46, 120]
+		\item Réduction des déplacements inutiles. % [cite: 46, 120]
+	\end{itemize} % [cite: 47, 121]
+	
+	En somme, ProxyMédoc ne se contente pas de lister des pharmacies, mais propose une véritable infrastructure numérique pour optimiser l'accès aux services pharmaceutiques, en s'appuyant sur des principes de réseau informatique pour garantir la fiabilité et la performance. % [cite: 47, 121]
+	
+	% ------------------------------------------
+	% Chapitre 3 — Spécification des besoins
+	% ------------------------------------------
+	\chapter{Spécification des besoins} % [cite: 48, 122]
+	Cette section tient lieu de cahier des charges pour le projet de développement de notre plateforme.
+	\section{Acteurs du système} % [cite: 48, 122]
+	Les acteurs de la plateforme ProxyMedoc sont les entités qui interagissent avec le système. 
+	Ils sont au nombre de 3 :\\ 
+	
+	\begin{table}[H] 
+		\centering 
+		\begin{tabular}{lp{10cm}} 
+			\toprule 
+			\textbf{Acteurs} & \textbf{Rôles} \\ 
+			\toprule 
+			Patient    & Consommateur de service — recherche et commande des médicaments \\ 
+			Pharmacie   & Fournisseur de service — gère les stocks et traite les commandes \\ 
+			Administrateur & Gestionnaire de la plateforme — supervise et configure le système \\ 
+			\bottomrule 
+		\end{tabular} 
+        \caption{Acteurs du système}
+	\end{table} 
+	
+	\section{Besoins fonctionnels} 
+	Les besoins fonctionnels décrivent les fonctionnalités principales que la plateforme doit offrir à chaque acteur.\\ 
+	
+	\begin{table}[H] 
+		\centering 
+		\begin{tabular}{lp{10cm}} 
+			\toprule 
+			\textbf{Acteurs} & \textbf{Fonctionnalités} \\ 
+			\toprule 
+			Patient        & Inscription et authentification ; Recherche de médicament ; % [cite: 123, 124]
+			Géolocalisation des pharmacies ; Commande en ligne ; Dépôt d'ordonnance ; Notifications ; Commande et suivi ; Mode hors-ligne \\[4pt] % [cite: 124, 125]
+			Pharmacie      & Inscription et authentification ; Gestion du catalogue ; % [cite: 125, 126]
+			Gestion des stocks ; Traitement des commandes ; Recherche inter-pharmacies ; Traitement des commandes \\[4pt] % [cite: 126, 127]
+			Administrateur & Gestion des utilisateurs ; Validation des pharmacies ; Supervision de la plateforme ; Configuration du système ; Rapports et statistiques \\ % [cite: 127, 128]
+			\bottomrule 
+		\end{tabular} 
+        \caption{Besoins fonctionnels}
+	\end{table} 
+	
+	\subsection{Besoins fonctionnnels Patient} 
+	\begin{itemize} 
+		\item \textbf{Authentification et inscription : }créer un compte sur la plateforme, il doit pouvoir se connecter via OAuth2 avec une double authentification (2FA). 
+		\item \textbf{Recherche de médicament : }Le patient doit pouvoir rechercher un médicament par nom, catégorie ou disponibilité. 
+		\item \textbf{Géolocalisation des pharmacies : }Le patient doit pouvoir visualiser sur une carte interactive les pharmacies situées à proximité de sa position géographique. 
+		\item \textbf{Dépôt d'ordonnance : }déposer une ordonnance numérique via upload de fichier ou scan direct depuis la caméra de son appareil. 
+		\item \textbf{Notifications : }recevoir des notifications push pour chaque changement d'état de sa commande ou pour la disponibilité d'un médicament recherché. 
+		\item \textbf{Commande et suivi : }passer une commande de médicaments et suivre son état en temps réel selon le cycle : En attente → Validée → Prête → Livrée. 
+		\item \textbf{Mode hors-ligne : }consulter le catalogue de médicaments et les pharmacies déjà chargées sans connexion internet, grâce au mode offline de la PWA. 
+	\end{itemize} 
+	
+	\subsection{Besoins fonctionnnels Pharmacie} 
+	\begin{itemize} 
+		\item \textbf{Inscription et authentification : } s'inscrire sur la plateforme et soumettre ses informations (nom, adresse, géolocalisation, documents légaux) pour validation par l'administrateur. 
+		\item \textbf{Gestion des catalogues : }ajouter, modifier et supprimer des médicaments de son catalogue avec les informations suivantes : nom, catégorie, prix (XAF, NGN, KES), stock disponible, image. 
+		\item \textbf{Gestion des stocks : }alerter automatiquement la pharmacie lorsque le stock d'un médicament passe en dessous d'un seuil défini. 
+		\item \textbf{Traitement des commandes : }consulter, valider ou refuser commandes reçues des patients, en justifiant un éventuel refus. 
+		\item \textbf{Consultation des ordonnances : }consulter les ordonnances déposées par les patients avant de valider une commande. 
+		\item \textbf{Recherche inter-pharmacies : }En cas de rupture de stock sur un médicament rare, la pharmacie doit pouvoir rechercher ce médicament chez les pharmacies voisines et orienter le patient. 
+		\item \textbf{Tableau de bord : }La pharmacie doit disposer d'un tableau de bord affichant en temps réel les ventes, les stocks critiques et les commandes en attente. 
+	\end{itemize} 
+	
+	\subsection{Besoins fonctionnnels Administrateur} 
+	\begin{itemize} 
+		\item \textbf{Gestion des utilisateurs : }créer, activer ou suspendre les comptes des patients et des pharmacies inscrits sur la plateforme. 
+		\item \textbf{Validation des pharmacies : }valider ou rejeter les demandes d'inscription des pharmacies après vérification de leurs documents légaux. 
+		\item \textbf{Supervision de la plateforme : }consulter en temps réel l'ensemble des transactions effectuées sur la plateforme (commandes, paiements, ordonnances). 
+		\item \textbf{Configuration du système : }configurer les paramètres globaux de la plateforme : langues disponibles, devises supportées, règles métier. 
+		\item \textbf{Rapports et statistiques : }générer des rapports de performance de la plateforme (nombre d'utilisateurs, commandes, médicaments les plus demandés) et les exporter. 
+	\end{itemize} 
+	
+	\section{Besoins Non Fonctionnels} 
+	C'est comment le système doit se comporter — les qualités, les contraintes, les performances. 
+	\begin{table}[H] 
+		\centering 
+		\begin{tabular}{lp{7cm}l} 
+			\toprule 
+			\textbf{Exigences} & \textbf{Description} & \textbf{Cible}\\ 
+			\toprule 
+			Performance  & Temps de réponse maximal & < 3s \\[4pt] 
+			Sécurité & Chiffrement et authentification & OAuth2 + JWT + 2FA \\[4pt] 
+			Scalabilité  & Croissance de données & 10 000 utilisateurs simultanés \\[4pt] 
+			Internationalisation & Langues utilisées & Français et anglais \\[4pt] 
+			\bottomrule 
+		\end{tabular} 
+        \caption{Besoins Non Fonctionnels}
+	\end{table} % [cit
+	
+\subsection{Contraintes Techniques}
+
+\subsubsection*{Architecture et évolution}
+\begin{itemize}
+    \item \textbf{Scalabilité :} La plateforme doit pouvoir supporter un nombre croissant d'utilisateurs.
+    \item \textbf{Architecture monolithique modulaire :} On opte pour un serveur unique (un seul processus) pour déployer toute la plateforme, bien que différents modules auront différentes responsabilités.
+    \item \textbf{Plateforme Multi-tenant :} La plateforme fonctionnant essentiellement par connexion internet, on déploiera une instance unique partagée par tous les utilisateurs finaux, leurs données étant simplement séparées.
+\end{itemize}
+
+\subsubsection*{Technologies de développement}
+\begin{itemize}
+    \item \textbf{Frontend (Next.js) :} L'interface sera développée avec le framework Next.js. Elle adoptera une stratégie PWA (Progressive Web Application), ce qui signifie que l'application pourra être installable et s'exécuter comme une application native. Cela inclut la possibilité de soumettre une ordonnance qui sera traitée automatiquement dès le rétablissement de la connexion internet.
+    \item \textbf{Backend (Spring Boot) :} La mise en place de l'API REST s'effectuera avec le framework Java Spring Boot.
+    \item \textbf{Versionnement de code :} Le choix de l'outil de versionnement se porte sur Git en combinaison avec la plateforme de dépôt de code GitHub.
+\end{itemize}
+
+\subsubsection*{Gestion des données et Réactivité}
+\begin{itemize}
+    \item \textbf{Système de Gestion de Base de Données (SGBD) :} Pour la persistance et la gestion des données, le choix s'est porté sur le SGBD relationnel \textbf{PostgreSQL}. Ce choix est motivé par sa robustesse, sa conformité ACID stricte et sa gestion avancée de la concurrence, assurant une parfaite intégrité lors des opérations simultanées de consultation et de réservation de médicaments.
+    \item \textbf{Réactivité :} La plateforme fonctionnera en temps réel : dès qu'un médicament est disponible, le demandeur en est avisé.
+\end{itemize}
+
+\subsubsection*{Sécurité et Interopérabilité}
+\begin{itemize}
+    \item \textbf{Aspect sécurité :} La confidentiality pour les patients (espace personnel) et l'espace de chaque pharmacie seront protégés par une authentification basique (identifiant et mot de passe). De plus, chaque pharmacie aura un administrateur pouvant créer des sessions de modification d'inventaire via la génération de codes de session avec expiration automatique ou révocation.
+    \item \textbf{Interopérabilité :} Utilisation d'APIs tierces pour intégrer les systèmes de paiement tels que Orange Money (Orange Cameroun) et Mobile Money (MTN Cameroun).
+\end{itemize}
+
+\subsubsection*{Contraintes légales et Fonctionnalités transverses}
+\begin{itemize}
+    \item \textbf{Contraintes légales et réglementaires :} Respect de la législation camerounaise sur les données numériques (ANTIC et MINPOSTEL), de la loi régissant le commerce électronique, ainsi que des normes sur les données de santé (MINSANTE via le Plan Stratégique National de Santé Numérique).
+    \item \textbf{Internationalisation :} Au-delà de la traduction des navigateurs, elle est nécessaire pour l'envoi d'emails et de notifications push, et pour adapter les formats de présentation (comme la date) en fonction de la langue.
+    \item \textbf{Localisation (Geolocation aware) :} Cette fonctionnalité permettra notamment d'adapter les prix des médicaments en fonction de la zone géographique du patient, par exemple dans le cadre d'une subvention de l'État.
+\end{itemize}
+
+\subsection{Protocoles Utilisés}
+
+Cette section détaille les protocoles mobilisés par couche de l'architecture, révisés en conformité avec les contraintes techniques du cahier des charges (architecture monolithique modulaire, SGBD PostgreSQL, authentification basique) et la nouvelle configuration technique (Next.js et Spring Boot).
+
+\begin{itemize}
+    \item \textbf{Communication Web :} Toutes les communications entre le client (PWA Next.js) et le serveur (API REST Spring Boot) s'effectuent en \textbf{HTTPS}, garantissant le chiffrement des échanges via \textbf{TLS/SSL}. Les notifications en temps réel, indispensables pour assurer la réactivité de la plateforme dès qu'un médicament est disponible, s'appuient sur le protocole \textbf{WebSocket} afin de maintenir une liaison bidirectionnelle permanente et persistante entre le navigateur et le processus unique du serveur.
+    
+    \item \textbf{Sécurité et authentification :} L'accès à l'espace personnel des patients et à celui des pharmacies est protégé par une \textbf{Authentification Basique} (identifiant et mot de passe) véhiculée de manière sécurisée. Pour la gestion de l'inventaire des médicaments par les officines, le serveur Spring Boot orchestre la génération de \textbf{codes de session spécifiques} dotés d'un mécanisme d'expiration automatique ou de révocation.
+    
+    \item \textbf{Accès aux données :} Le serveur d'application Spring Boot interagit directement avec le SGBD \textbf{PostgreSQL}. Cette communication réseau s'établit via le protocole natif de \textbf{PostgreSQL (via le pilote JDBC / Hibernate)}, garantissant des transactions fiables et hautement performantes pour l'ensemble des opérations de lecture et d'écriture.
+    
+    \item \textbf{Géolocalisation et formats d'échange :} La localisation géographique du patient est récupérée à l'aide de l'\textbf{API Geolocation HTML5} intégrée au navigateur web (nécessitant l'usage du protocole HTTPS). L'ensemble des payloads et des structures de données transmis de manière asynchrone entre le frontend Next.js et l'API Spring Boot utilise exclusivement le format standard \textbf{JSON}.
+\end{itemize}
+    % ------------------------------------------
+	% Chapitre 4 — Modeles d'analyse
+	% ------------------------------------------
+    \chapter{Modèles d'analyse}
+    Les modèles présentés via des diagrammes ont été conçus comme concepts du langage de modélisation UML. Cependant, nous avons aussi inclu dans cette section un modèle conceptuel de données(MCD) de la méthode MERISE.
+
+    % ======== MODELISATION STATIQUE
+    \section{Modélisation dynamique}
+    
+	% ------------------------------------------
+	%  USE CASES
+	% ------------------------------------------
+	\subsection{Diagrammes de cas d'utilisation}
+	Le diagramme ci-dessous illustre de manière exhaustive les cas d'utilisation pour l'ensemble des acteurs (Patient, Pharmacie, Administrateur) interconnectés autour du système central.
+	
+	\begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/case.png}
+		\caption{Diagramme de cas d'utilisation du système}
+		\label{fig:usecase_global}
+	\end{figure}
+	
+    \subsection{Description textuelle des cas d'utilisation principaux}
+
+% ----------------------------------------------------------
+% CAS 1 — Recherche médicament (Patient)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Recherche médicament}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de vérifier la disponibilité d'un médicament en effectuant une recherche dans la base de données de la plateforme. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient doit être authentifié sur la plateforme.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient accède à la barre de recherche de l'application.
+            \item Il saisit le nom du médicament souhaité.
+            \item Le système interroge la base de données et affiche les résultats en commençant par les meilleurs, par rapport aux variables prix et distance.
+            \item Le patient consulte les résultats affichés.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[2.a] Le médicament recherché est en rupture de stock dans toutes les pharmacies ou aucun résultat ne correspond à la saisie: le système propose le cas d'utilisation \textit{Faire commande personnalisée}.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Le patient dispose des informations sur la disponibilité du médicament recherché. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Recherche médicament}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 2 — Faire commande personnalisée (Patient, extension)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Faire commande personnalisée}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de soumettre une demande de commande personnalisée lorsque le médicament recherché est en rupture de stock ou inexistant dans les pharmacies. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le cas d'utilisation \textit{Recherche médicament} a été exécuté.
+            \item Le médicament est signalé en rupture de stock ou la recherche n'a rien trouvé dans la base de données.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le système notifie le patient que le médicament est indisponible et lui propose de formuler une commande personnalisée.
+            \item Le patient confirme sa demande et donne la description du médicament souhaité.
+            \item Le système enregistre la commande et notifie les pharmacies.
+            \item Le patient reçoit une confirmation d'enregistrement de sa demande.
+            \item Une notification est envoyée au patient dès que le médicament est rendu disponible.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} & - \\
+        \hline
+        \textbf{Postconditions} & La commande personnalisée est enregistrée et les pharmacies sont notifiées de la demande. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Faire commande personnalisée}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 3 — Voir détails médicament (Patient, extension de Recherche)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Voir détails médicament}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de consulter la fiche complète d'un médicament (composition via notice, posologie, prix, pharmacie) après avoir obtenu des résultats de recherche. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le cas d'utilisation \textit{Recherche médicament} a été exécuté et des résultats sont affichés.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient sélectionne un médicament dans la liste des résultats.
+            \item Le système affiche la fiche détaillée du médicament : nom, composition, photo, etc.
+            \item Le patient consulte les informations affichées.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} & - \\
+        \hline
+        \textbf{Postconditions} & Le patient dispose des informations complètes sur le médicament et peut poursuivre vers l'achat ou la consultation de la pharmacie. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Voir détails médicament}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 4 — Ajouter au panier (Patient, extension de Voir détails médicament)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Ajouter au panier}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient d'ajouter un médicament à son panier en vue d'un achat ultérieur, depuis la fiche détaillée du médicament. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le cas d'utilisation \textit{Voir détails médicament} est en cours d'exécution.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient demande à ajouter au panier et renseigne la quantité voulue depuis la fiche du médicament.
+            \item Le système vérifie la quantité souhaitée et enregistre la demande dans le panier du patient.
+            \item Le système met à jour le compteur du panier et affiche un message de confirmation d'ajout.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[2.a] Le stock est insuffisant selon la quantité voulue : le système en notifie le patient.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Le médicament est présent dans le panier du patient avec la quantité, le prix et la pharmacie associés. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Ajouter au panier}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 5 — Voir détails pharmacie (Patient, extension de Voir détails médicament)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Voir détails pharmacie}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de consulter les informations détaillées d'une pharmacie (adresse, horaires, statut de garde) depuis la fiche d'un médicament. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le cas d'utilisation \textit{Voir détails médicament} est en cours d'exécution.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient demande à voir les détails d'une pharmacie depuis la fiche du médicament.
+            \item Le système affiche la fiche détaillée de la pharmacie : nom, adresse, horaires d'ouverture, images.
+            \item Le patient consulte les informations affichées.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} & - \\
+        \hline
+        \textbf{Postconditions} & Le patient dispose des informations nécessaires pour se rendre à la pharmacie ou effectuer une commande. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Voir détails pharmacie}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 6 — Afficher itinéraire (Patient + système géolocalisation, extension)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Afficher itinéraire}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient, Système de géolocalisation (acteur externe) \\
+        \hline
+        \textbf{Objectif} & Permettre au patient d'obtenir l'itinéraire depuis sa position actuelle jusqu'à la pharmacie sélectionnée, via le système de géolocalisation externe. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le cas d'utilisation \textit{Voir détails pharmacie} est en cours d'exécution.
+            \item Le patient a autorisé l'accès à sa position géographique.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient demande l'affichage de l'itinéraire depuis la fiche de la pharmacie.
+            \item Le système récupère la position GPS actuelle du patient.
+            \item Le système transmet les coordonnées de départ et de destination au système de géolocalisation externe.
+            \item Le système de géolocalisation calcule et affiche l'itinéraire optimal sur une carte interactive de la plateforme.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} & - \\
+        \hline
+        \textbf{Postconditions} & L'itinéraire vers la pharmacie est affiché et le patient peut s'y rendre. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Afficher itinéraire}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 7 — Acheter médicaments (Patient)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Acheter médicaments}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de finaliser l'achat des médicaments présents dans son panier via la plateforme. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le panier du patient contient au moins un médicament.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient demande l'achat des médicaments du panier.
+            \item Le système lui présente son panier avec le montant total et le récapitulatif de la commande.
+            \item Le patient clique sur le bouton \textbf{``Acheter''}.
+            \item Le système redirige vers le système de paiement.
+            \item Le paiement est confirmé.
+            \item Le système enregistre la commande et décrémente les stocks correspondants dans la pharmacie concernée.
+            \item Le patient reçoit une confirmation d'achat.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[5.a] Le paiement est refusé par le système de paiement : le système notifie l'échec et invite le patient à réessayer.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & La commande est validée, le stock est décrémenté et le patient reçoit une confirmation. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Acheter médicaments}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 8 — Soumettre ordonnance (Patient)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Soumettre ordonnance}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre à un patient de transmettre électroniquement une ordonnance médicale afin d'obtenir les médicaments prescrits. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le patient dispose d'une ordonnance valide (numérique ou physique à scanner).
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le patient demande de soumettre une ordonnance.
+            \item Il scanne son ordonnance à l'aide de la caméra de son appareil ou charge le fichier correspondant.
+            \item Le système valide le document soumis.
+            \item Le système extrait automatiquement la liste des médicaments prescrits.
+            \item Le système effectue une recherche de disponibilité et affiche les résultats par pharmacie.
+            \item Le patient sélectionne sa préférence et ajoute les médicaments à son panier.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[3.a] Le document est illisible ou dans un format non supporté : le système demande au patient de soumettre à nouveau l'ordonnance.
+            \item[5.a] Un ou plusieurs médicaments prescrits sont indisponibles : le système notifie le patient et propose une commande personnalisée pour les articles manquants.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Les médicaments issus de l'ordonnance sont ajoutés au panier et prêts à être commandés. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Soumettre ordonnance}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 9 — Réserver médicament (Patient, extension d'Acheter médicaments)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Réserver médicament}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient \\
+        \hline
+        \textbf{Objectif} & Permettre au patient de réserver l'ensemble des médicaments de son panier auprès de la pharmacie concernée, afin de les récupérer ultérieurement en présentiel sans passer par le paiement en ligne. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item Le patient est authentifié.
+            \item Le panier du patient contient au moins un médicament.
+            \item Le cas d'utilisation \textit{Acheter médicaments} est en cours d'exécution (point d'extension : après affichage du récapitulatif de commande).
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Au lieu de cliquer sur \textbf{``Acheter''}, le patient choisit l'option \textbf{``Réserver''}.
+            \item Le système affiche le délai de validité de la réservation fixé par la pharmacie concernée.
+            \item Le patient accepte le délai proposé et confirme la réservation.
+            \item Le système enregistre la réservation du panier et notifie la pharmacie concernée.
+            \item Le patient reçoit une confirmation avec les détails de sa réservation (durée de validité, pharmacie, montant à régler sur place).
+            \item Le panier est vidé.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[3.a] Le patient refuse le délai proposé : aucune réservation n'est enregistrée et le panier est conservé.
+            \item[3.b] Le patient annule : aucune réservation n'est enregistrée et le panier est conservé.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Les réservations sont enregistrées pour tous les médicaments du panier, les stocks sont mis en attente et la pharmacie est notifiée. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Réserver médicament}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 10 — S'inscrire (Patient / Pharmacie, extension Authentification)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : S'inscrire}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient, Pharmacie \\
+        \hline
+        \textbf{Objectif} & Permettre à un nouvel utilisateur (patient ou pharmacie) de créer un compte sur la plateforme ProxyMedoc afin d'accéder aux fonctionnalités réservées aux utilisateurs authentifiés. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item L'utilisateur n'est pas encore inscrit sur la plateforme.
+            \item Le cas \textit{Authentification} est déclenché et le point d'extension est atteint (point d'extension : à l'affichage de l'interface d'authentification).
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal (Patient)} &
+        \begin{enumerate}
+            \item Le patient clique sur \textbf{``S'inscrire''} puis sélectionne le profil \textbf{``Patient''}.
+            \item Il renseigne ses informations : nom, prénom, numéro de téléphone et mot de passe.
+            \item Il accepte les conditions générales d'utilisation et soumet le formulaire.
+            \item Le système vérifie l'unicité du numéro de téléphone et valide les champs saisis.
+            \item Le système envoie un code OTP par SMS au numéro renseigné.
+            \item Le patient saisit le code OTP reçu pour confirmer son numéro de téléphone.
+            \item Le compte est activé et le patient est redirigé vers la page d'accueil.
+        \end{enumerate} \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{S'inscrire}}
+\end{table}
+% suite
+\subsection*{Cas d'utilisation : S'inscrire (suite)}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+    \hline
+        \textbf{Scénario nominal (Pharmacie)} &
+        \begin{enumerate}
+            \item Le pharmacien clique sur \textbf{``S'inscrire''} puis sélectionne le profil \textbf{``Pharmacie''}.
+            \item Il renseigne les informations de la pharmacie : nom, adresse, numéro de téléphone et mot de passe, photos de la pharmacie et document d'autorisation gouvernementale.
+            \item Il accepte les conditions générales d'utilisation et soumet le formulaire.
+            \item Le système vérifie l'unicité du numéro de téléphone et valide les champs saisis.
+            \item Le système envoie un code OTP par SMS au numéro renseigné.
+            \item Le pharmacien saisit le code OTP reçu pour confirmer son numéro de téléphone.
+            \item Le système enregistre le dossier et le soumet à l'administrateur pour validation.
+            \item Le compte est en attente d'activation jusqu'à la décision de l'administrateur.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[5.a] Le numéro de téléphone est déjà utilisé : le système affiche un message d'erreur et invite l'utilisateur à se connecter ou à réinitialiser son mot de passe.
+            \item[5.b] Des champs obligatoires sont manquants ou invalides : le système indique les erreurs à corriger.
+            \item[7.a] Le code OTP est incorrect ou expiré : le système invite l'utilisateur à le ressaisir ou à en demander un nouveau.
+            \item[2.a] \textit{(Pharmacie)} Le document d'autorisation est dans un format non supporté : le système indique les formats acceptés et invite à soumettre à nouveau.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} &
+        \begin{itemize}
+            \item \textit{Patient :} le compte est créé et activé ; le patient peut se connecter immédiatement.
+            \item \textit{Pharmacie :} le dossier est soumis et en attente de validation par l'administrateur.
+        \end{itemize} \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{S'inscrire}}
+\end{table}
+% ----------------------------------------------------------
+% CAS 11 — Authentification (Patient, Pharmacie, Administrateur)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Authentification}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Patient, Pharmacie, Administrateur \\
+        \hline
+        \textbf{Objectif} & Permettre à tout acteur du système de s'identifier de manière sécurisée afin d'accéder aux fonctionnalités qui lui sont réservées. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item L'acteur dispose d'un compte actif sur la plateforme.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item Le système affiche l'interface d'authentification.
+            \item L'acteur saisit son identifiant (numéro téléphonique) et son mot de passe.
+            \item Le système vérifie les informations dans la base de données.
+            \item Le système ouvre la session de l'acteur.
+            \item L'acteur est redirigé vers son espace personnel selon son rôle (patient, pharmacie ou administrateur).
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[3.a] Les identifiants sont incorrects : le système affiche un message d'erreur et invite à réessayer.
+            \item[3.b] Le compte est suspendu : le système affiche un message indiquant le motif de la suspension.
+            \item[1.a] L'acteur ne possède pas encore de compte : le système fait une notification.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & L'acteur est authentifié et dispose d'une session active lui donnant accès aux fonctionnalités de son rôle. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Authentification}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 12 — Modifier médicament (Pharmacie)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Modifier médicament}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Pharmacie \\
+        \hline
+        \textbf{Objectif} & Permettre à une pharmacie de mettre à jour les informations d'un médicament déjà enregistré dans son catalogue (prix, stock, description, image). \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item La pharmacie est authentifiée.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item La pharmacie accède à son tableau de bord et sélectionne le module \textbf{``Gestion du catalogue''}.
+            \item Elle recherche et sélectionne le médicament à modifier.
+            \item Elle modifie les champs souhaités : prix, notice, quantité en stock, description, image.
+            \item Elle clique sur le bouton \textbf{``Enregistrer''}.
+            \item Le système valide les modifications et met à jour la base de données.
+            \item Le système confirme la mise à jour par un message de succès.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[4.a] Des valeurs saisies sont invalides (prix négatif, stock non numérique) : le système affiche les erreurs et invite à les corriger.
+            \item[4.b] La pharmacie annule les modifications : aucun changement n'est enregistré.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Les informations du médicament sont mises à jour et immédiatement visibles par les patients sur la plateforme. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Modifier médicament}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 13 — Ajouter médicament (Pharmacie)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Ajouter médicament}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Pharmacie \\
+        \hline
+        \textbf{Objectif} & Permettre à une pharmacie d'enrichir son catalogue en y ajoutant un nouveau médicament avec toutes ses informations. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item La pharmacie est authentifiée.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item La pharmacie accède à son tableau de bord et sélectionne l'option \textbf{``Ajouter un médicament''}.
+            \item Elle renseigne les informations du médicament : nom, prix (en XAF), quantité en stock, description et image, notice.
+            \item Elle clique sur le bouton \textbf{``Enregistrer''}.
+            \item Le système vérifie que les champs obligatoires sont renseignés et valides.
+            \item Le système enregistre le médicament dans le catalogue de la pharmacie et le rend visible sur la plateforme.
+            \item Un message de confirmation est affiché à la pharmacie.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[4.a] Des champs obligatoires sont manquants ou invalides : le système affiche les erreurs à corriger.
+            \item[4.b] Le médicament existe déjà dans le catalogue : le système avertit la pharmacie et lui propose de modifier l'entrée existante.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Le médicament est ajouté au catalogue de la pharmacie et apparaît dans les résultats de recherche des patients. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Ajouter médicament}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 14 — Consulter notifications (Pharmacie)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Consulter notifications}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Pharmacie \\
+        \hline
+        \textbf{Objectif} & Permettre à une pharmacie de consulter les notifications reçues : nouvelles commandes (personnalisées ou non), réservations, alertes de rupture de stock ou messages de l'administrateur. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item La pharmacie est authentifiée.
+            \item Au moins une notification est disponible dans le système.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item La pharmacie accède à son tableau de bord et demande la consultation des notifications.
+            \item Le système affiche la liste des notifications reçues, triées par date décroissante, éventuellement filtrées selon leur statut (lue / non lue).
+            \item La pharmacie sélectionne une notification pour en consulter le détail.
+            \item Le système marque automatiquement la notification comme lue.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[2.a] Aucune notification n'est disponible : le système affiche un message \texttt{``Aucune notification pour le moment''}.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & Les notifications consultées sont marquées comme lues et la pharmacie a pris connaissance des informations transmises. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Consulter notifications}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 15 — Valider pharmacie (Administrateur)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Valider pharmacie}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Administrateur \\
+        \hline
+        \textbf{Objectif} & Permettre à l'administrateur d'examiner et de valider l'inscription d'une nouvelle pharmacie sur la plateforme, après vérification de ses documents légaux. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item L'administrateur est authentifié.
+            \item Une ou plusieurs pharmacies ont soumis une demande d'inscription en attente de validation.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item L'administrateur accède au tableau de bord et consulte la liste des pharmacies en attente de validation.
+            \item Il sélectionne une demande et examine les informations soumises (nom, adresse, documents légaux).
+            \item Il juge les documents conformes.
+            \item Il clique sur le bouton \textbf{``Valider''}.
+            \item Le système active le compte de la pharmacie et la rend visible sur la plateforme.
+            \item La pharmacie est notifiée de la validation de son compte par SMS.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[3.a] Les documents sont incomplets ou non conformes : l'administrateur rejette la demande en précisant le motif, et la pharmacie est notifiée.
+            \item[3.b] L'administrateur demande des informations complémentaires avant de statuer.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & La pharmacie est activée sur la plateforme et peut gérer son catalogue et traiter les commandes des patients. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Valider pharmacie}}
+\end{table}
+
+% ----------------------------------------------------------
+% CAS 16 — Suspendre pharmacie (Administrateur)
+% ----------------------------------------------------------
+\subsection*{Cas d'utilisation : Suspendre pharmacie}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+        \hline
+        \textbf{Acteur} & Administrateur \\
+        \hline
+        \textbf{Objectif} & Permettre à l'administrateur de suspendre temporairement une pharmacie active de la plateforme. \\
+        \hline
+        \textbf{Préconditions} &
+        \begin{enumerate}
+            \item L'administrateur est authentifié (inclut le cas \textit{Authentification}).
+            \item La pharmacie concernée est active sur la plateforme.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario nominal} &
+        \begin{enumerate}
+            \item L'administrateur accède au tableau de bord et sélectionne la pharmacie à suspendre.
+            \item Il renseigne les motifs justifiant la suspension.
+            \item Il clique sur le bouton \textbf{``Suspendre''}.
+            \item Le système demande une confirmation.
+            \item L'administrateur confirme.
+            \item Le système désactive temporairement le compte de la pharmacie et masque son profil aux patients.
+            \item La pharmacie est notifiée de la suspension et du motif par SMS.
+        \end{enumerate} \\
+        \hline
+        \textbf{Scénario alternatif} &
+        \begin{enumerate}
+            \item[4.a] L'administrateur annule la procédure : aucune modification n'est appliquée.
+            \item[6.a] La pharmacie possède des commandes en cours : le système avertit l'administrateur et lui laisse le choix de forcer ou d'annuler la suspension.
+        \end{enumerate} \\
+        \hline
+        \textbf{Postconditions} & La pharmacie est suspendue, elle n'est plus visible des patients et ses fonctionnalités de gestion sont désactivées jusqu'à réactivation. \\
+        \hline
+    \end{tabular}
+    \caption{Description \textit{Suspendre pharmacie}}
+\end{table}
+
+% Fin des descriptions de cas d'utilisation
+
+    % ==========  Modelisation STATIQUE
+    \section{Modélisation statique}
+    % ======= CLASSE METIER
+    \subsection{Diagramme de classes} 
+	Le diagramme de classes est un modèle UML qui représente les classes du système, leurs attributs, leurs méthodes et les associations entre elles. % [cite: 55, 56]
+	Il offre une vue statique de la structure du logiciel. % [cite: 56, 57]
+	Pour \textit{ProxyMedoc}, nous avons identifié les classes principales suivantes : \texttt{Patient}, \texttt{Pharmacien}, \texttt{Administrateur}, \texttt{Pharmacie}, \texttt{Medicament}, \texttt{Ordonnance}, \texttt{Panier}. % [cite: 57, 58]
+	Chaque classe est définie par un ensemble d'attributs et de méthodes qui reflètent les responsabilités des entités du domaine. % [cite: 58, 59]
+	Par exemple, la classe \texttt{Patient} contient des informations personnelles, des coordonnées géographiques (latitude/longitude) pour la localisation, et des méthodes pour rechercher des médicaments, acheter, soumettre une ordonnance, gérer un panier et configurer des alertes. % [cite: 59, 60]
+	De même, la classe \texttt{Pharmacie} dispose d'attributs comme le nom, l'adresse, les horaires, le statut (ouverte, fermée, garde) et la localisation géographique, ainsi qu'une méthode pour obtenir la liste des médicaments disponibles. % [cite: 60, 61]
+	Les associations entre les classes sont explicitées avec leurs multiplicités. % [cite: 61, 62]
+	Par exemple, un \texttt{Patient} peut avoir un seul \texttt{Panier}, un \texttt{Panier} contient plusieurs \texttt{Medicament}, et chaque \texttt{LignePanier} concerne un unique \texttt{Medicament}. % [cite: 62, 63]
+	De même, une \texttt{Pharmacie} est administrée par un \texttt{Administrateur} et est gérée par un \texttt{Pharmacien}. % [cite: 63, 64]
+	Ces associations permettent de modéliser les règles de gestion de l'application. 
+	
+	Le diagramme de classes complet est présenté ci-dessous. % [cite: 64, 65]
+	\begin{figure}[H] 
+		\centering 
+		\includegraphics[width=0.95\linewidth]{images/Diagramme de classe projet reseau.jpg} 
+		\caption{Diagramme de classe} 
+		\label{fig:case_global} 
+	\end{figure} 
+	
+	Ce diagramme servira de base pour la conception de la base de données et pour l'implémentation des objets métier dans le code.
+
+    %================================
+    %==========  MCD
+    \section{Modèle Conceptuel de Données (MCD)} 
+	Le MCD est une représentation abstraite des données, indépendante de toute technologie de base de données. % [cite: 66, 67]
+	Il utilise la notation entité-association pour décrire les entités, leurs attributs et les associations entre elles. % [cite: 67, 68]
+	Le MCD permet de formaliser la sémantique des données et de valider les règles de gestion. % [cite: 68, 69]
+	Dans notre MCD, nous retrouvons les mêmes entités que dans le diagramme de classes, mais sous une forme plus proche du schéma relationnel. % [cite: 69, 70]
+	Chaque entité possède un identifiant (clé primaire) et des attributs. % [cite: 70, 71]
+	Les associations sont nommées et précisent les cardinalités (1, 0..N, 1..N, etc.). % [cite: 71, 72]
+	Par exemple, l'association \texttt{POSSEDER} relie le \texttt{Patient} (1) au \texttt{Panier} (0..N), indiquant qu'un patient peut posséder zéro, un ou plusieurs paniers. % [cite: 72, 73]
+	De même, \texttt{STOCKER} lie une \texttt{Pharmacie} (1) à un \texttt{Medicament} (0..N), car une pharmacie peut stocker plusieurs médicaments. % [cite: 73, 74]
+	Le MCD est un outil de communication entre les analystes, les concepteurs et les futurs développeurs. % [cite: 74, 75]
+	Il assure que toutes les exigences fonctionnelles sont couvertes en termes de données. % [cite: 75, 76]
+	Le schéma MCD de \textit{ProxyMedoc} est illustré dans la figure suivante. 
+	\begin{figure}[H] 
+		\centering 
+		\includegraphics[width=0.95\linewidth]{images/MCD projet reseau.jpg} 
+		\caption{MCD} 
+		\label{fig:case_global2} 
+	\end{figure} 
+
+    % ==========================================
+	% CHAPITRE — MODÉLISATION MATHÉMATIQUE DU PROBLÈME D'OPTIMISATION
+	% (Intégré depuis modele_math.tex)
+	% ==========================================
+	\chapter{Modélisation mathématique}
+	
+	Nous avons envisagé la modélisation de la situation-problème sous l'angle de la recherche opérationnelle. Il s'agit d'un Programme Linéaire en Nombres Entiers (PLNE) visant à minimiser le coût global (financier et logistique) pour un patient donné.
+	
+	\section{Paramètres du Problème (Données d'entrée)}
+	Nous définissons ici les ensembles et les constantes de l'instance du problème à un instant $t$ fixe :
+	
+	\subsection{Ensembles}
+	\begin{itemize}
+		\item[$\bullet$] $\Phi$ : L'ensemble des pharmacies disponibles.
+		\item[$\bullet$] $\mathcal{M}_{\text{req}}$ : L'ensemble des médicaments requis par le patient (sa liste d'achat ou son ordonnance).
+	\end{itemize}
+	
+	\subsection{Constantes}
+	\begin{itemize}
+		\item[$\bullet$] $q_m \in \mathbb{N}^*$ : La quantité requise pour le médicament $m \in \mathcal{M}_{\text{req}}$.
+		\item[$\bullet$] $S_{\phi, m} \in \mathbb{N}$ : Le stock du médicament $m$ disponible dans la pharmacie $\phi$.
+		\item[$\bullet$] $C_{\phi, m} \in \mathbb{R}^+$ : Le prix unitaire du médicament $m$ dans la pharmacie $\phi$.
+		\item[$\bullet$] $D_\phi \in \mathbb{R}^+$ : La distance géopolitique ou topologique entre le patient et la pharmacie $\phi$.
+		\item[$\bullet$] $O_m \in \{0, 1\}$ : Constante binaire valant $1$ si le médicament $m$ exige obligatoirement une ordonnance, $0$ sinon.
+		\item[$\bullet$] $V_m \in \{0, 1\}$ : Constante binaire valant $1$ si le patient possède une ordonnance valide pour le médicament $m$, $0$ sinon.
+	\end{itemize}
+	
+	\section{Variables de Décision}
+	Le modèle doit déterminer la valeur des variables binaires suivantes :
+	\begin{itemize}
+		\item[$\bullet$] $x_{\phi, m} \in \{0, 1\}$ : Vaut $1$ si le patient choisit d'acheter le médicament $m$ dans la pharmacie $\phi$, et $0$ sinon.
+		\item[$\bullet$] $y_\phi \in \{0, 1\}$ : Vaut $1$ si le patient doit se déplacer à la pharmacie $\phi$ (la pharmacie est visitée), et $0$ sinon.
+	\end{itemize}
+	
+	\section{Fonction Objectif}
+	Le problème est multi-objectif (minimisation du coût de transport et du coût d'achat). Nous introduisons deux facteurs de pondération $\alpha \ge 0$ et $\beta \ge 0$ exprimant les préférences du patient. 
+	
+	On cherche à minimiser la fonction de coût global $Z$ :
+	\[
+	\min_{x, y} \quad Z = \alpha \sum_{\phi \in \Phi} D_\phi y_\phi + \beta \sum_{m \in \mathcal{M}_{\text{req}}} \sum_{\phi \in \Phi} C_{\phi, m} \cdot q_m \cdot x_{\phi, m}
+	\]
+	
+	\section{Contraintes du Modèle}
+	La minimisation est soumise aux contraintes strictes suivantes :
+	
+	\subsection{Satisfaction de la demande}
+	Chaque médicament requis doit être acheté dans exactement une pharmacie (hypothèse de non-fractionnement de la quantité d'un même item) :
+	\[
+	\forall m \in \mathcal{M}_{\text{req}}, \quad \sum_{\phi \in \Phi} x_{\phi, m} = 1
+	\]
+	
+	\subsection{Disponibilité des stocks}
+	Le patient ne peut acheter un médicament dans une pharmacie que si celle-ci possède le stock suffisant pour couvrir l'intégralité de la demande $q_m$ :
+	\[
+	\forall m \in \mathcal{M}_{\text{req}}, \quad \forall \phi \in \Phi, \quad q_m \cdot x_{\phi, m} \le S_{\phi, m}
+	\]
+	
+	\subsection{Contrainte légale des ordonnances}
+	Un médicament soumis à prescription ne peut être acheté que si le patient a soumis une ordonnance valide :
+	\[
+	\forall m \in \mathcal{M}_{\text{req}}, \quad \forall \phi \in \Phi, \quad O_m \cdot x_{\phi, m} \le V_m
+	\]
+	
+	\subsection{Cohérence logique des déplacements}
+	Le patient ne peut acheter un médicament dans une pharmacie $\phi$ que s'il a activé la variable de visite $y_\phi$ de cette pharmacie :
+	\[
+	\forall m \in \mathcal{M}_{\text{req}}, \quad \forall \phi \in \Phi, \quad x_{\phi, m} \le y_\phi
+	\]
+	
+	\subsection{Intégrité des variables}
+	\[
+	\forall \phi \in \Phi, \ \forall m \in \mathcal{M}_{\text{req}}, \quad x_{\phi, m} \in \{0, 1\}, \quad y_\phi \in \{0, 1\}
+	\]
+    % ==== FIN mod Math
+
+	% ==========================================
+	% PARTIE II — CONCEPTION
+	% ==========================================
+	\part{CONCEPTION}
+    
+    % ------------------------------------------
+	% Chapitre — Modeles de conception
+	% ------------------------------------------
+    \chapter{Modèles de conception}
+    
+	% ==========  Modelisation STATIQUE
+    %\section{Modélisation statique}
+
+    % ======== MODELISATION DYNA
+    \section{Modélisation dynamique}
+    La modélisation dynamique occupe une place centrale et indispensable dans le  processus de conception d'un système logiciel tel que PROXYMEDOC. Si la  modélisation statique permet de répondre à la question « de quoi est composé le  système ? », la modélisation dynamique répond à une question tout aussi  fondamentale : « comment le système se comporte-t-il dans le temps ? ». 
+Dans le cadre de PROXYMEDOC, cette dimension comportementale est  particulièrement critique pour plusieurs raisons. 
+Premièrement, PROXYMEDOC est un système fortement interactif. L'application  met en relation plusieurs acteurs simultanément : l'utilisateur qui recherche un  médicament, le pharmacien qui gère son stock, le système GPS qui fournit les  coordonnées, et la base de données qui centralise toutes les informations. Chacun  de ces acteurs envoie et reçoit des messages à des moments précis, selon un ordre  strict. La moindre erreur dans cet enchaînement peut provoquer des incohérences :  afficher un médicament comme disponible alors qu'il vient d'être vendu, ou indiquer  une pharmacie ouverte alors qu'elle est fermée. La modélisation dynamique permet  de détecter et corriger ces problèmes dès la phase de conception, avant même  d'écrire une seule ligne de code. 
+Deuxièmement, PROXYMEDOC opère en temps réel. Les données de stock, de  géolocalisation et de disponibilité changent constamment. Un utilisateur qui lance  une recherche à 21h un dimanche soir doit obtenir des résultats à jour, fiables et  instantanés. Modéliser le comportement du système en temps réel — via les  diagrammes de séquence technique — permet de concevoir une architecture  capable de gérer la synchronisation des données, la gestion du cache, et les  notifications push sans délai inacceptable. 
+Troisièmement, la modélisation dynamique protège contre les scénarios  d'échec. Dans tout système réel, les choses ne se passent pas toujours comme  prévu. Le GPS peut être désactivé, le stock peut tomber à zéro entre le moment de  la recherche et celui de l'arrivée à la pharmacie, le réseau peut être instable. Les  diagrammes d'activité permettent de modéliser explicitement ces cas alternatifs et  exceptionnels, et de prévoir pour chacun une réponse appropriée du système. C'est  ce qui distingue un logiciel robuste d'un logiciel fragile. 
+Quatrièmement, elle assure la cohérence du cycle de vie des données. PROXYMEDOC manipule des entités dont l'état évolue en permanence : un stock de  médicament passe de « disponible » à « faible » puis à « en rupture » ; une  commande passe de « en attente » à « confirmée » puis à « livrée ». Sans une  modélisation rigoureuse de ces transitions d'états, des bugs critiques peuvent  survenir : une commande considérée comme livrée alors qu'elle est encore en  attente, ou un stock affiché disponible alors qu'il est expiré. Les diagrammes d'états-
+transitions formalisent ces cycles de vie et servent de référence directe pour coder  les règles métier. 
+Enfin, la modélisation dynamique est le pont entre la conception et  l'implémentation. Les diagrammes produits dans ce chapitre ne sont pas de  simples illustrations théoriques. Ils constituent la spécification précise à partir de  laquelle les développeurs écriront les méthodes, les contrôleurs, les services et les  gestionnaires d'événements de l'application. Chaque flèche dans un diagramme de  séquence correspond à un appel de méthode réel dans le code. Chaque état dans  un diagramme d'états-transitions correspond à une valeur dans la base de données. 
+En somme, négliger la modélisation dynamique dans un projet comme  PROXYMEDOC, c'est construire une maison sans plan d'installation électrique : la  structure peut tenir, mais les pannes sont inévitables. C'est pourquoi ce chapitre  constitue l'un des piliers fondamentaux de la conception du système. 
+Afin de couvrir les aspects comportementaux essentiels du système PROXYMEDOC, ce  chapitre s'articule autour de deux axes complémentaires. Nous commencerons par les  diagrammes de séquence système (section 5.1), qui décrivent les échanges entre les acteurs  externes et le système perçu comme une boîte noire, sans se préoccuper de son organisation  interne. Nous approfondirons ensuite avec les diagrammes de séquence technique (section  5.2), qui plongent à l'intérieur de l'architecture logicielle de PROXYMEDOC pour détailler les  interactions entre ses composants internes et mettre en évidence la manière dont chaque  fonctionnalité est réellement traitée de bout en bout. 
+Diagramme de séquence système
+Les diagrammes de séquence système constituent le premier niveau de modélisation  dynamique de PROXYMEDOC. Leur rôle est de décrire, pour chaque cas d'utilisation  principal, la succession ordonnée des interactions qui se produisent entre les acteurs  externes et le système, ce dernier étant considéré comme une boîte noire, c'est-à-dire sans  se préoccuper de son organisation interne ni de la manière dont il traite les requêtes. Dans le  cadre de PROXYMEDOC, les diagrammes de séquence système sont particulièrement  importants car le système met en jeu plusieurs acteurs aux besoins distincts : l'utilisateur qui  cherche un médicament ou une pharmacie, le pharmacien qui gère son inventaire, et le  système de géolocalisation qui fournit les coordonnées GPS en temps réel. Chacun de ces  acteurs interagit avec PROXYMEDOC selon des scénarios bien précis, qu'il convient de  modéliser rigoureusement afin de garantir la cohérence et la fiabilité du système. Les diagrammes de séquence système présentés dans cette section couvrent les cas d'utilisation les plus représentatifs et les plus  critiques de PROXYMEDOC.
+ 
+	\subsection{Diagrammes de séquence système}
+    \subsection*{Recherche pharmacie}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/Diagramme sequence pour recherche pharmacie.jpeg}
+		\caption{séquence système recherche pharmacie}
+		\label{fig:recherche_pharmacie}
+	\end{figure}
+    
+    \newpage
+    \subsection*{Supprimer pharmacie}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/supp pharma sys.jpeg}
+		\caption{séquence système Supprimer pharmacie}
+		\label{fig:supprimer pharmacie}
+	\end{figure}
+    
+    \newpage
+    \subsection*{Recherche médicaments}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/Diagramme de sequence systeme recherche medicament.jpg.jpeg}
+		\caption{séquence système Recherche médicaments}
+		\label{fig:recherche_medoc}
+	\end{figure}
+
+\subsection*{Réservation de médicaments}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/reserv medoc sys.jpeg}
+		\caption{séquence système Réserver médicaments}
+		\label{fig:reserver_medoc}
+	\end{figure}
+    \newpage
+    %======= SEQ TECH
+	\subsection{Diagrammes de séquence technique}
+     \subsection*{Recherche médicaments}
+     \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/recherche medoc tech.png}
+		\caption{Séquence technique Recherche médicaments}
+		\label{fig:rechercher_medoc_tech}
+	\end{figure}
+
+     \newpage
+    \subsection*{Réserver médicaments}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/reserver-medoc_sequence-technique.jpg.jpeg}
+		\caption{Séquence technique Réserver médicaments}
+		\label{fig:reserver_medoc_tech}
+	\end{figure}
+
+    \newpage
+    \subsection*{Soumettre ordonnance}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/soum ordo tech.jpeg}
+		\caption{Séquence technique Soumettre ordonnance }
+	\label{fig:soumettre_ordonnace_tech}
+	\end{figure}
+
+    \newpage
+    \subsection*{Ajouter pharmacie}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/ajout pharma technique.jpeg}
+		\caption{Séquence technique Ajouter pharmacie}
+		\label{fig:ajout pharma tech}
+	\end{figure}
+	
+	\subsection*{Supprimer pharmacie}
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/supp pharma tech.jpeg}
+		\caption{séquence technique Supprimer pharmacie}
+		\label{fig:supprimer pharmacie tech}
+	\end{figure}
+	
+	% ==========================================
+	% PARTIE III — RÉALISATION
+	% ==========================================
+	\part{RÉALISATION} 
+	
+	% ==========================================
+	% CHAPITRE — Interfaces de la Plateforme
+	% ==========================================
+	\chapter{Interfaces de la Plateforme} 
+	
+	\section{Présentation Générale de l'Interface} 
+	L'interface de ProxyMédoc a été conçue dans le but d'offrir une expérience utilisateur simple, intuitive et accessible à tous les acteurs du système. % [cite: 162, 163]
+	Elle constitue le point d'interaction entre les utilisateurs, les pharmaciens, les administrateurs et le système informatique. % [cite: 163, 164]
+	\begin{boxreseau} 
+		\textbf{Note Technique -- Architecture Réseau :}\\ 
+		La plateforme repose sur une architecture client-serveur dans laquelle les différentes interfaces communiquent avec un serveur central via Internet. % [cite: 164, 165]
+		Les données relatives aux pharmacies, aux médicaments, aux utilisateurs et aux commandes sont stockées dans une base de données centralisée. % [cite: 165, 166]
+		Les informations affichées sur les différentes interfaces sont récupérées dynamiquement grâce à des requêtes HTTP/HTTPS envoyées au serveur. % [cite: 166, 167]
+	\end{boxreseau} 
+	
+	L'interface a été organisée autour de trois espaces principaux : 
+	\begin{itemize} 
+		\item \textbf{L'espace Utilisateur ;} 
+		\item \textbf{L'espace Pharmacie ;} 
+		\item \textbf{L'espace Administrateur.} 
+	\end{itemize} 
+	Chaque espace possède des fonctionnalités spécifiques adaptées aux besoins de son utilisateur. % [cite: 167, 168]
+	
+	\section{Espace Patient} 
+	L'interface utilisateur est destinée aux patients et aux personnes recherchant des médicaments ou des pharmacies. % [cite: 168, 169]
+	Elle représente la partie la plus utilisée du système et a été conçue pour permettre une navigation rapide et intuitive. % [cite: 169, 170]
+	
+	\subsection{Page d'accueil} 
+	La page d'accueil constitue le point d'entrée principal de la plateforme. % [cite: 170, 171]
+	Elle présente le logo, le nom de l'application ProxyMédoc, une barre de recherche rapide, ainsi que les boutons de connexion et les pharmacies de garde. % [cite: 171, 172]
+	\begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/page_accueil.jpeg} 
+		\caption{maquette - Page d'accueil} 
+		\label{fig:accueil} 
+	\end{figure} 
+	
+	\subsection{Interface d'inscription} 
+	Afin d'accéder aux fonctionnalités avancées (réservations, ordonnances), l'utilisateur renseigne son nom, prénom, adresse électronique, téléphone et mot de passe. % [cite: 172, 173]
+	Une fois validées, ces informations sont envoyées au serveur pour inscription en base de données. % [cite: 173, 174]
+	
+	\subsection{Interface d'authentification} 
+	L'authentification permet à l'utilisateur de se connecter de manière sécurisée. % [cite: 174, 175]
+	Les identifiants saisis sont transmis via requêtes sécurisées au serveur qui valide l'accès et redirige vers l'espace personnel. 
+    % [cite: 175, 176]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/quthentification.jpeg} 
+		\caption{Authentification} 
+		\label{fig:authentification} 
+	\end{figure} 
+	
+	\subsection{Interface de recherche de médicaments} 
+	Cette interface permet d'interroger la base de données pour identifier les pharmacies disposant du médicament demandé, affichant les stocks disponibles et la localisation en temps réel. 
+    % [cite: 176, 177]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/recherche_médicaments.jpeg} 
+		\caption{Recherche pharmacie} 
+		\label{fig:recherche_pharmacie} 
+	\end{figure} 
+	
+	\subsection{Interface de recherche de pharmacie} 
+	Permet de localiser les officines sur une carte interactive ou une liste filtrée selon le statut (ouverte, fermée ou de garde) et la distance par rapport à l'utilisateur. % [cite: 177, 178]
+	
+	\subsection{Interface de réservation de médicaments} 
+	Le système enregistre automatiquement les informations de réservation et génère une notification instantanée à destination du pharmacien pour la préparation de la commande. % [cite: 178, 179]
+	
+	\subsection{Gestion du panier} 
+	Le panier virtuel regroupe plusieurs produits, gère la modification des quantités et calcule dynamiquement le montant total avant la validation finale. % [cite: 179, 180]
+    % [cite: 176, 177]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/panier.jpeg} 
+		\caption{Panier} 
+		\label{fig:panier} 
+	\end{figure} 
+	
+	\subsection{Validation de commande} 
+	Avant l'enregistrement, le serveur valide la cohérence des stocks, les informations du compte et l'existence éventuelle d'une ordonnance requise. % [cite: 180, 181]
+	
+	\subsection{Soumission d'ordonnance} 
+	ProxyMédoc permet de téléverser une image ou un document numérique de l'ordonnance, facilitant la vérification de conformité par le pharmacien à distance.
+    % [cite: 181, 182]
+	% [cite: 176, 177]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/soumettre.jpeg} 
+		\caption{Soumission Ordonnance} 
+		\label{fig:ordonnance} 
+	\end{figure} 
+	\section{Espace Pharmacien} 
+	L'espace pharmacie permet aux professionnels de gérer de manière autonome leurs stocks de médicaments (ajout, modification de quantité, suppression) et de valider ou rejeter les demandes de réservation des clients.
+    % [cite: 182, 183]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/espace_pharmacie.jpeg} 
+		\caption{Espace pharmacie} 
+		\label{fig:espace_pharmacie} 
+	\end{figure} 
+	
+	\section{Espace Administrateur} 
+	L'administrateur assure la supervision globale de la plateforme : ajout de nouvelles pharmacies partenaires avec leurs coordonnées complètes, modification des informations d'ouverture et gestion des droits d'accès. % [cite: 183, 184]
+	 % [cite: 182, 183]
+    \begin{figure}[h!] 
+		\centering 
+		 \includegraphics[width=0.7\textwidth]{images/espace_admin.jpeg} 
+		\caption{Espace administrateur} 
+		\label{fig:espace_administrateur} 
+	\end{figure} 
+	\section{Pages Communes} 
+	
+	\subsection{Communication entre les Interfaces et le Serveur} 
+	L'ensemble des interfaces de ProxyMédoc repose sur une architecture réseau de type client-serveur. % [cite: 184, 185]
+	Le traitement complet d'une action se résume en cinq étapes clés orchestrées par le réseau : 
+	\begin{enumerate} 
+		\item \textbf{Réception} de la requête client (HTTP/HTTPS) ; % [cite: 185, 186]
+		\item \textbf{Vérification} des droits d'accès et jetons de sécurité ; % [cite: 186, 187]
+		\item \textbf{Consultation} ou modification de la base de données SQL ; 
+		\item \textbf{Traitement} logique des informations par le serveur ; % [cite: 187, 188]
+		\item \textbf{Transmission} de la réponse formatée au client. 
+	\end{enumerate} 
+	
+	Cette structure informatique réseau garantit une intégrité parfaite des données de santé présentées aux utilisateurs de ProxyMédoc. % [cite: 188, 189]
+	
+	% =========================================================================
+	% CHAPITRE — ENVIRONNEMENT DE DÉVELOPPEMENT
+	% =========================================================================
+	\chapter{Environnement de développement}
+	Cette section présente l'écosystème matériel et logiciel mis en œuvre pour la conception et la réalisation de notre plateforme de recherche et de réservation de médicaments. L'objectif est de garantir la reproductibilité du cadre de travail pour tout développement futur.
+	
+	\section{Environnement matériel}
+	Le développement de l'application (Backend et Frontend) a été configuré et exécuté sur nos machines d'étudiants présentant les caractéristiques techniques minimales consignées dans le tableau suivant :
+	
+	\begin{table}[h!]
+		\centering
+		\begin{tabular}{ll}
+			\toprule
+			\textbf{Composant} & \textbf{Spécification technique} \\
+			\midrule
+			Processeur (CPU) & \textit{ Au moins 2 coeurs avec 2.0vitesse de base}\\
+			Mémoire Vive (RAM) & \textit{Ex: 8Go DDR+} \\
+			Stockage & \textit{ 256 Go SSD} \\
+			Système d'exploitation & \textit{Ubuntu 22.04 LTS / 24.04 / } \\
+			\bottomrule
+		\end{tabular}
+        \caption{Caractéristiques de l'environnement matériel}
+	\end{table}
+	
+	\section{Environnement logiciel et outils}
+	Plusieurs outils logiciels spécialisés ont été mobilisés pour optimiser le flux de travail, la modélisation et le suivi des versions du code source :
+	\begin{itemize}
+		\item \textbf{Environnements de Développement Intégrés (IDE) :} 
+		\begin{itemize}
+			\item \textbf{Apache NetBeans :} Utilisé pour le développement du backend Spring Boot en raison de ses nombreux outils.
+			\item \textbf{Visual Studio Code :} Privilégié pour le framework frontend Next.js grâce à son écosystème d'extensions performant pour TypeScript, React et Tailwind CSS.
+		\end{itemize}
+		\item \textbf{Gestion des versions et collaboration :} Le logiciel \textbf{Git} a été employé pour le suivi des modifications du code source, associé à la plateforme \textbf{GitHub} pour centraliser les dépôts et assurer la sauvegarde distante.
+		\item \textbf{Conception et modélisation :} Les diagrammes de cas d'utilisation, de classes et de séquences ont été modélisés à l'aide de l'outil \textit{Draw.io}.
+		\item \textbf{Tests et manipulation des données :} \textbf{Postman} a servi à tester les points d'accès (endpoints) de l'API RESTful. L'outil \textbf{MySQL Workbench} a été utilisé pour administrer et visualiser la base de données locale.
+	\end{itemize}
+	
+	\section{Technologies et Frameworks retenus}
+	L'architecture de l'application repose sur un modèle découplé de type Client-Serveur. Les choix technologiques ont été guidés par des impératifs de robustesse, de performance et d'adaptabilité au contexte réseau du Cameroun.
+	
+	\subsection{Architecture Backend : Spring Boot}
+	Le serveur d'application est propulsé par le framework \textbf{Spring Boot (v4.0.1)} basé sur le langage \textbf{Java 17}. Ce choix se justifie par :
+	\begin{itemize}
+		\item \textbf{Spring Security :} Pour la mise en place d'une authentification et d'une autorisation robustes basées sur les rôles.
+		\item \textbf{Spring Data JPA / Hibernate :} Pour simplifier l'accès aux données relationnelles via un outil de mapping objet-relationnel (ORM) performant.
+		\item \textbf{L'écosystème Spring :} Qui facilite la création d'APIs REST modulaires, évolutives et prêtes pour la production.
+	\end{itemize}
+	
+	\subsection{Architecture Frontend : Next.js}
+	L'interface utilisateur est développée avec le framework \textbf{Next.js v14} exploitant la bibliothèque \textbf{React} et le langage \textbf{TypeScript}. Les avantages retenus sont :
+	\begin{itemize}
+		\item \textbf{App Router \& Server-Side Rendering (SSR) :} Permet de pré-rendre les pages côté serveur, réduisant le temps de chargement initial de la liste des pharmacies ou des médicaments sur les connexions mobiles à faible débit (3G/4G au Cameroun).
+		\item \textbf{Optimisation des images et du SEO :} Essentielle pour assurer la visibilité des pharmacies locales sur les moteurs de recherche.
+		\item \textbf{Tailwind CSS :} Framework CSS utilitaire utilisé pour concevoir une interface utilisateur responsive, fluide et adaptée aux smartphones comme aux ordinateurs.
+	\end{itemize}
+	
+	\subsection{Système de Gestion de Base de Données (SGBD)}
+	Les données sont persistées au sein d'un SGBD relationnel \textbf{ MySQL}.
+	
+	% =========================================================================
+	% CHAPITRE — IMPLÉMENTATION
+	% (Intégré depuis envi_dev__implementation.tex)
+	% =========================================================================
+	\chapter{Implémentation}
+	Cette section détaille la structure interne de l'application, l'organisation logique du code source, la traduction des cas d'utilisation métier en composants logiciels, ainsi que les principaux verrous techniques levés durant la phase de programmation.
+	
+	\section{Architecture logicielle globale}
+	L'application adopte une architecture découplée où le Frontend Next.js communique de manière asynchrone avec le Backend Spring Boot via le protocole HTTP/HTTPS en échangeant des payloads au format JSON. Le backend applique le patron de conception (\textit{design pattern}) \textbf{N-Tiers} (ou architecture en couches) pour cloisonner les responsabilités.
+
+    \begin{figure}[H] 
+		\centering \includegraphics[width=0.95\linewidth]{images/architecture app.png}
+		\caption{Architecture en couches de la plateforme}
+	\label{fig:architecture logicielle}
+	\end{figure}
+
+	%==========
+    %=============== CONCLUSION
+    \chapter*{CONCLUSION}
+\addcontentsline{toc}{chapter}{CONCLUSION} 
+
+Au terme de ce travail, nous avons étudié et conçu une solution numérique visant à améliorer l'accès aux médicaments et aux services pharmaceutiques au Cameroun à travers la plateforme ProxyMédoc. Ce projet est né du constat selon lequel de nombreux patients rencontrent encore des difficultés pour localiser rapidement une pharmacie, connaître la disponibilité d'un médicament ou identifier les pharmacies de garde, ce qui entraîne souvent des pertes de temps, des déplacements inutiles et parfois des retards dans la prise en charge médicale.
+
+Afin de répondre à cette problématique, nous avons mené une analyse approfondie des besoins des différents acteurs du système, à savoir les patients, les pharmaciens et les administrateurs. Cette étude a permis d'identifier les fonctionnalités essentielles attendues et de définir les exigences fonctionnelles et non fonctionnelles nécessaires à la mise en place d'une plateforme fiable, performante et sécurisée.
+
+La phase de conception nous a conduits à élaborer plusieurs modèles de représentation du système, notamment les diagrammes UML, le modèle conceptuel de données, le modèle logique de données ainsi qu'un modèle mathématique d'optimisation basé sur la programmation linéaire en nombres entiers. Ces différents modèles ont permis de structurer efficacement la solution et de garantir sa cohérence fonctionnelle et technique.
+
+Sur le plan technologique, nous avons proposé une architecture client-serveur moderne reposant sur les technologies Spring Boot, Next.js et une base de données relationnelle enrichie de fonctionnalités de géolocalisation. Cette architecture permet d'assurer la centralisation des informations pharmaceutiques, la gestion des stocks, la recherche intelligente de médicaments, la réservation en ligne, le dépôt électronique d'ordonnances ainsi que la communication sécurisée entre les différents acteurs du système.
+
+Les résultats obtenus démontrent la faisabilité technique et la pertinence de la solution proposée. ProxyMédoc constitue ainsi un outil capable de faciliter l'accès à l'information pharmaceutique, d'améliorer l'expérience des patients et de renforcer la visibilité ainsi que l'efficacité opérationnelle des pharmacies partenaires.
+
+Toutefois, ce projet ouvre également la voie à plusieurs perspectives d'amélioration. Parmi celles-ci figurent l'intégration de systèmes de paiement électronique plus avancés, l'utilisation de l'intelligence artificielle pour la recommandation de traitements ou la prédiction des ruptures de stock, la mise en place d'un module de téléconsultation médicale ainsi que l'extension de la plateforme à l'échelle nationale et sous-régionale.
+
+En définitive, ProxyMédoc s'inscrit dans une démarche de transformation numérique du secteur pharmaceutique et contribue à rapprocher davantage les populations des services de santé grâce aux technologies de l'information et de la communication. Sa mise en œuvre effective pourrait constituer une avancée significative dans l'amélioration de l'accès aux médicaments et dans la modernisation des services pharmaceutiques au Cameroun.
+
+    %==========
+    %=============== References biblio
+\addcontentsline{toc}{chapter}{BIBLIOGRAPHIE}
+
+\begin{thebibliography}{99}
+
+\bibitem{djotio}
+Djotio Ndié, T.,
+\textit{Cours d'introduction aux réseaux},
+École Nationale Supérieure Polytechnique de Yaoundé (ENSPY).
+
+\bibitem{audibert2023}
+Audibert, L.,
+\textit{UML 2 -- Analyse et conception : cours et exercices corrigés},
+7\textsuperscript{e} édition, Ellipses, 2023.
+
+\bibitem{rivest2019}
+Rivest, J.,
+\textit{Merise : Guide pratique de modélisation des données},
+ENI Éditions, 2019.
+
+\bibitem{roques2021}
+Roques, P.,
+\textit{UML 2 par la pratique : études de cas et exercices corrigés},
+Eyrolles, 2021.
+
+\end{thebibliography}
+
+\addcontentsline{toc}{chapter}{WEBOGRAPHIE}
+\section*{Webographie}
+
+\begin{enumerate}
+
+\item \textbf{Documentation officielle Spring Boot}.\\
+\texttt{https://spring.io/projects/spring-boot}
+(consulté en juin 2026).
+
+\item \textbf{Documentation officielle Next.js}.\\
+\texttt{https://nextjs.org/docs}
+(consulté en juin 2026).
+
+\item \textbf{Documentation MySQL}.\\
+\texttt{https://dev.mysql.com/doc}
+(consulté en juin 2026).
+\end{enumerate}
+
+\end{document}

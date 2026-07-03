@@ -1,0 +1,15 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad-ibup" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB84D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9500;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="95" fill="url(#grad-ibup)" stroke="white" stroke-width="3"/>
+  
+  <path d="M 70 70 Q 70 50 90 50 Q 110 50 110 70 L 110 130 Q 110 150 90 150 Q 70 150 70 130 Z" fill="white" stroke="none"/>
+  <path d="M 70 70 Q 70 50 90 50 Q 110 50 110 70 L 110 130 Q 110 150 90 150 Q 70 150 70 130 Z" fill="none" stroke="#FF9500" stroke-width="3"/>
+  <text x="90" y="105" font-size="20" font-weight="bold" fill="#FF9500" text-anchor="middle" font-family="Arial">IBU</text>
+  
+  <circle cx="130" cy="100" r="10" fill="white" stroke="#FF9500" stroke-width="2"/>
+</svg>
