@@ -29,10 +29,87 @@ export default function AuthPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [regName, setRegName] = useState('');
+  const [regLatitude, setRegLatitude] = useState('');
+  const [regLongitude, setRegLongitude] = useState('');
+  const [regHoraires, setRegHoraires] = useState('');
+  const [daySchedules, setDaySchedules] = useState<Record<string, { open: string; close: string }>>({
+    Lundi: { open: '08:00', close: '20:00' },
+    Mardi: { open: '08:00', close: '20:00' },
+    Mercredi: { open: '08:00', close: '20:00' },
+    Jeudi: { open: '08:00', close: '20:00' },
+    Vendredi: { open: '08:00', close: '20:00' },
+    Samedi: { open: '08:00', close: '20:00' },
+    Dimanche: { open: '08:00', close: '20:00' },
+  });
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']);
+  const [currentDayIndex, setCurrentDayIndex] = useState(0);
+  const [customizedDays, setCustomizedDays] = useState<Record<string, boolean>>({});
+  const [regEstDeGarde, setRegEstDeGarde] = useState(false);
+  const [regContact, setRegContact] = useState('');
   const [legalDocs, setLegalDocs] = useState<File[]>([]);
   const [pharmacyImages, setPharmacyImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+
+  const dayOrder = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev => {
+      const isSelected = prev.includes(day);
+      const next = isSelected ? prev.filter(item => item !== day) : [...prev, day];
+      const sorted = [...next].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+      if (!isSelected) {
+        setCurrentDayIndex(sorted.indexOf(day));
+      } else {
+        setCurrentDayIndex(prevIndex => Math.max(0, Math.min(prevIndex, sorted.length - 1)));
+      }
+
+      return sorted;
+    });
+  };
+
+  const updateDaySchedule = (day: string, field: 'open' | 'close', value: string) => {
+    setCustomizedDays(prev => ({ ...prev, [day]: true }));
+    setDaySchedules(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value,
+      },
+    }));
+  };
+
+  const goToDay = (step: -1 | 1) => {
+    if (selectedDays.length === 0) return;
+
+    const nextIndex = Math.max(0, Math.min(selectedDays.length - 1, currentDayIndex + step));
+    const currentDay = selectedDays[currentDayIndex];
+    const targetDay = selectedDays[nextIndex];
+
+    if (step === 1 && currentDay && targetDay && !customizedDays[targetDay]) {
+      setDaySchedules(prev => ({
+        ...prev,
+        [targetDay]: {
+          ...(prev[currentDay] ?? { open: '08:00', close: '20:00' }),
+        },
+      }));
+    }
+
+    setCurrentDayIndex(nextIndex);
+  };
+
+  useEffect(() => {
+    const scheduleByDay = dayOrder.reduce<Record<string, { open: string; close: string }>>((acc, day) => {
+      if (selectedDays.includes(day)) {
+        acc[day] = daySchedules[day] ?? { open: '08:00', close: '20:00' };
+      }
+      return acc;
+    }, {});
+
+    const formattedHours = Object.keys(scheduleByDay).length > 0 ? JSON.stringify(scheduleByDay) : '';
+    setRegHoraires(formattedHours);
+  }, [selectedDays, daySchedules]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,24 +172,56 @@ export default function AuthPage() {
     setFormErrors({});
     setLoading(true);
     try {
-      const body = {
-        role: regRole,
-        name: regName,
-        email: regEmail,
-        phone: regPhone,
-        licence: regLicence,
-        adresse: regAdresse,
-        legalDocsCount: legalDocs.length,
-        pharmacyImagesCount: pharmacyImages.length,
-        documentsUploaded: legalDocs.length > 0,
-        legalDocNames: legalDocs.map(file => file.name),
-        password: regPassword,
-      };
+      let body: BodyInit;
+      let headers: HeadersInit | undefined;
+
+      if (regRole === 'pharmacie') {
+        const formData = new FormData();
+        formData.append('role', regRole);
+        formData.append('name', regName);
+        formData.append('email', regEmail);
+        formData.append('phone', regPhone);
+        formData.append('licence', regLicence);
+        formData.append('adresse', regAdresse);
+        formData.append('latitude', regLatitude);
+        formData.append('longitude', regLongitude);
+        formData.append('horaires', regHoraires);
+        formData.append('estDeGarde', String(regEstDeGarde));
+        formData.append('contact', regContact);
+        formData.append('password', regPassword);
+        formData.append('legalDocsCount', String(legalDocs.length));
+        formData.append('pharmacyImagesCount', String(pharmacyImages.length));
+        formData.append('documentsUploaded', String(legalDocs.length > 0));
+        legalDocs.forEach(file => formData.append('legalDocs', file));
+        pharmacyImages.forEach(file => formData.append('pharmacyImages', file));
+        body = formData;
+      } else {
+        const jsonBody = {
+          role: regRole,
+          name: regName,
+          email: regEmail,
+          phone: regPhone,
+          licence: regLicence,
+          adresse: regAdresse,
+          latitude: regLatitude,
+          longitude: regLongitude,
+          horaires: regHoraires,
+          estDeGarde: regEstDeGarde,
+          contact: regContact,
+          legalDocsCount: legalDocs.length,
+          pharmacyImagesCount: pharmacyImages.length,
+          documentsUploaded: legalDocs.length > 0,
+          legalDocNames: legalDocs.map(file => file.name),
+          password: regPassword,
+        };
+        body = JSON.stringify(jsonBody);
+        headers = { 'Content-Type': 'application/json' };
+      }
 
       const res = await fetch('/api/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers,
+        body,
       });
 
       const data = await res.json();
@@ -250,10 +359,107 @@ export default function AuthPage() {
                       <input type="text" value={regAdresse} onChange={e => setRegAdresse(e.target.value)} placeholder="Quartier, Ville" className="input-field" />
                       {formErrors.adresse && <p className="text-xs text-red-600 mt-1">{formErrors.adresse}</p>}
                     </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-500 opacity-70"
+                        title="Disponible prochainement — clé API Google Maps requise"
+                      >
+                        Choisir l’emplacement géographique
+                      </button>
+                      <p className="mt-2 text-xs text-slate-500">Bientôt disponible — intégration Google Maps à venir.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1.5 font-medium">Latitude</label>
+                        <input type="number" step="any" value={regLatitude} onChange={e => setRegLatitude(e.target.value)} placeholder="3.8480" className="input-field" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1.5 font-medium">Longitude</label>
+                        <input type="number" step="any" value={regLongitude} onChange={e => setRegLongitude(e.target.value)} placeholder="11.5021" className="input-field" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Horaires d’ouverture</label>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex flex-wrap gap-2">
+                          {dayOrder.map(day => {
+                            const active = selectedDays.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => toggleDay(day)}
+                                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${active ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                              >
+                                {day.slice(0, 3)}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">Parcours par jour</p>
+                              <p className="text-xs text-slate-500">Naviguez d’un jour à l’autre pour définir les horaires.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => goToDay(-1)} disabled={selectedDays.length === 0 || currentDayIndex === 0} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
+                                Précédent
+                              </button>
+                              <button type="button" onClick={() => goToDay(1)} disabled={selectedDays.length === 0 || currentDayIndex === selectedDays.length - 1} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
+                                Suivant
+                              </button>
+                            </div>
+                          </div>
+
+                          {selectedDays.length > 0 && currentDayIndex < selectedDays.length ? (
+                            <>
+                              <div className="mb-3 flex items-center justify-between">
+                                <span className="text-sm font-semibold text-slate-700">{selectedDays[currentDayIndex]}</span>
+                                <span className="text-xs text-slate-500">{currentDayIndex + 1}/{selectedDays.length}</span>
+                              </div>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="text-sm text-slate-600">
+                                  <span className="mb-1 block text-xs font-medium text-slate-500">Ouverture</span>
+                                  <input
+                                    type="time"
+                                    value={daySchedules[selectedDays[currentDayIndex]]?.open ?? '08:00'}
+                                    onChange={e => updateDaySchedule(selectedDays[currentDayIndex], 'open', e.target.value)}
+                                    className="input-field"
+                                  />
+                                </label>
+                                <label className="text-sm text-slate-600">
+                                  <span className="mb-1 block text-xs font-medium text-slate-500">Fermeture</span>
+                                  <input
+                                    type="time"
+                                    value={daySchedules[selectedDays[currentDayIndex]]?.close ?? '20:00'}
+                                    onChange={e => updateDaySchedule(selectedDays[currentDayIndex], 'close', e.target.value)}
+                                    className="input-field"
+                                  />
+                                </label>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-slate-500">Sélectionnez au moins un jour ouvrable.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Contact principal</label>
+                      <input type="text" value={regContact} onChange={e => setRegContact(e.target.value)} placeholder="Nom du responsable / contact" className="input-field" />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox" checked={regEstDeGarde} onChange={e => setRegEstDeGarde(e.target.checked)} className="rounded border-slate-300" />
+                      Pharmacie de garde
+                    </label>
                     <div>
                       <label className="block text-xs text-slate-500 mb-1.5 font-medium">Documents légaux (Agrément, Registre de Commerce)</label>
-                      <div className="space-y-2">
-                        <label className="group cursor-pointer rounded-lg border border-dashed border-slate-200 p-2.5 text-center transition hover:border-blue-400 hover:bg-blue-50">
+                      <div className="space-y-3">
+                        <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/70 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100">
                           <input
                             type="file"
                             accept="application/pdf,image/*"
@@ -261,21 +467,25 @@ export default function AuthPage() {
                             className="sr-only"
                             onChange={e => handleLegalDocsChange(e.target.files)}
                           />
-                          <Upload className="mx-auto text-slate-400" size={16} />
-                          <p className="text-xs text-slate-500">Cliquer pour ajouter</p>
-                          <p className="text-xs text-slate-400">PDF, PNG, JPG (max 2)</p>
+                          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm">
+                            <Upload size={18} />
+                          </div>
+                          <p className="text-sm font-medium text-slate-700">Glissez ou cliquez pour ajouter</p>
+                          <p className="mt-1 text-xs text-slate-500">PDF, PNG, JPG (max 2 fichiers)</p>
                         </label>
                         {legalDocs.length > 0 && (
-                          <div className="rounded-lg bg-green-50 border border-green-200 p-3">
-                            <p className="text-xs font-medium text-green-700 mb-2">{legalDocs.length} fichier{legalDocs.length > 1 ? 's' : ''} sélectionné{legalDocs.length > 1 ? 's' : ''}</p>
-                            <ul className="space-y-1">
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                            <p className="mb-2 text-sm font-semibold text-emerald-700">
+                              {legalDocs.length} fichier{legalDocs.length > 1 ? 's' : ''} sélectionné{legalDocs.length > 1 ? 's' : ''}
+                            </p>
+                            <ul className="space-y-2">
                               {legalDocs.map((file, idx) => (
-                                <li key={idx} className="text-xs text-green-600 truncate flex items-center justify-between">
-                                  <span className="truncate">• {file.name}</span>
+                                <li key={idx} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-700">
+                                  <span className="truncate">{file.name}</span>
                                   <button
                                     type="button"
                                     onClick={() => setLegalDocs(prev => prev.filter((_, i) => i !== idx))}
-                                    className="text-green-600 hover:text-red-600 ml-2 flex-shrink-0"
+                                    className="flex-shrink-0 text-lg text-emerald-600 hover:text-red-600"
                                   >
                                     ×
                                   </button>
@@ -290,7 +500,7 @@ export default function AuthPage() {
                       <label className="block text-xs text-slate-500 mb-1.5 font-medium">Photos de la pharmacie (max 3)</label>
                       <div className="grid gap-3 sm:grid-cols-3">
                         {Array.from({ length: 3 }).map((_, index) => (
-                          <label key={index} className="group cursor-pointer rounded-3xl border border-slate-200 p-3 text-center transition hover:border-blue-400">
+                          <label key={index} className="group cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-3 text-center transition-all duration-200 hover:border-blue-400 hover:bg-blue-50">
                             <input
                               type="file"
                               accept="image/*"
@@ -298,9 +508,9 @@ export default function AuthPage() {
                               onChange={e => handlePharmacyImageChange(index, e.target.files?.[0] ?? null)}
                             />
                             {imagePreviews[index] ? (
-                              <img src={imagePreviews[index]} alt={`Photo ${index + 1}`} className="mx-auto h-20 w-full rounded-2xl object-cover" />
+                              <img src={imagePreviews[index]} alt={`Photo ${index + 1}`} className="mx-auto h-20 w-full rounded-xl object-cover" />
                             ) : (
-                              <div className="flex h-20 flex-col items-center justify-center gap-1 text-slate-400">
+                              <div className="flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 bg-white text-slate-400">
                                 <span className="text-xl">+</span>
                                 <span className="text-[11px]">Photo {index + 1}</span>
                               </div>
@@ -308,7 +518,7 @@ export default function AuthPage() {
                           </label>
                         ))}
                       </div>
-                      <p className="text-xs text-slate-400 mt-2">Ajoutez jusqu’à 3 photos de votre officine.</p>
+                      <p className="mt-2 text-xs text-slate-400">Ajoutez jusqu’à 3 photos de votre officine.</p>
                     </div>
                   </>
                 )}
