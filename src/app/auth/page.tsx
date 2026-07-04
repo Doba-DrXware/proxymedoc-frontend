@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { comptes } from '@/lib/data';
-import { Pill, Building2, Shield, User, Eye, EyeOff, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Pill, Eye, EyeOff, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AuthPage() {
   const { login, role } = useAuth();
@@ -35,15 +34,6 @@ export default function AuthPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
-  const remplirDemo = (r: 'patient' | 'pharmacie' | 'admin') => {
-    const compte = comptes.find(c => c.role === r);
-    if (!compte) return;
-    setTab('login');
-    setEmail(compte.email);
-    setPass(compte.password);
-    setLoginError('');
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -55,22 +45,23 @@ export default function AuthPage() {
         body: JSON.stringify({ email: email.trim(), password: pass }),
       });
 
-      const data = await res.json();
+      let data = null;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : null;
+      } catch (e) {
+        data = null;
+      }
+
       if (!res.ok || !data?.success) {
-        throw new Error(data?.message || 'Identifiants invalides');
+        const msg = (data && data.message) || res.statusText || 'Identifiants invalides';
+        throw new Error(msg);
       }
 
       const role = data.user?.role === 'pharmacie' ? 'pharmacie' : data.user?.role === 'admin' ? 'admin' : 'patient';
-      login(role, data.user?.name || email, data.user?.pharmacieId ?? undefined);
+      login(role, data.user?.name || email, data.user?.pharmacieId ?? undefined, data.token);
     } catch (error) {
-      const compte = comptes.find(
-        c => c.email.toLowerCase() === email.trim().toLowerCase() && c.password === pass
-      );
-      if (compte) {
-        login(compte.role, compte.nom, compte.pharmacieId);
-      } else {
-        setLoginError(error instanceof Error ? error.message : 'Email ou mot de passe incorrect.');
-      }
+      setLoginError(error instanceof Error ? error.message : 'Email ou mot de passe incorrect.');
     }
   };
 
@@ -133,15 +124,13 @@ export default function AuthPage() {
 
       if (data.success) {
         if (regRole === 'patient') {
-          try {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            comptes.push({ email: regEmail, password: regPassword || '', nom: (data.user?.name ?? regName) || 'Nouveau Patient', role: 'patient' });
-          } catch (e) {
-            // ignore if pushing fails
+          // Rely solely on backend response: login only when backend confirms and provides token/profile
+          if (data.token && data.user) {
+            login('patient', (data.user?.name ?? regName) || 'Nouveau Patient', data.user?.pharmacieId ?? undefined, data.token);
+          } else {
+            // Backend did not provide expected authentication payload — surface error
+            setFormErrors({ general: 'Inscription réussie mais aucune session fournie par le serveur. Veuillez vous connecter.' });
           }
-
-          login('patient', (data.user?.name ?? regName) || 'Nouveau Patient');
         } else {
           setSubmitted(true);
         }
@@ -342,23 +331,6 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="mt-4 bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 text-center mb-3">Accès démo rapide</p>
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => remplirDemo('patient')} className="flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 transition-colors">
-              <User size={16} className="text-blue-600" />
-              <span className="text-xs font-medium text-slate-600">Patient</span>
-            </button>
-            <button onClick={() => remplirDemo('pharmacie')} className="flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 transition-colors">
-              <Building2 size={16} className="text-blue-600" />
-              <span className="text-xs font-medium text-slate-600">Pharmacie</span>
-            </button>
-            <button onClick={() => remplirDemo('admin')} className="flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 transition-colors">
-              <Shield size={16} className="text-blue-600" />
-              <span className="text-xs font-medium text-slate-600">Admin</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

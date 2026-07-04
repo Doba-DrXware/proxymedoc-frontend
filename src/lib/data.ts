@@ -265,43 +265,6 @@ export const pharmacies: Pharmacie[] = [
   },
 ];
 
-export interface Compte {
-  email: string;
-  password: string;
-  nom: string;
-  role: Role;
-  pharmacieId?: number;
-}
-
-// Mot de passe identique pour tous les comptes de démo, pour simplifier les tests
-const DEMO_PASSWORD = 'demo1234';
-
-export const comptesPatients: Compte[] = [
-  { email: 'jean.martin@mail.com', password: DEMO_PASSWORD, nom: 'Jean Martin', role: 'patient' },
-  { email: 'marie.nguema@mail.com', password: DEMO_PASSWORD, nom: 'Marie Nguema', role: 'patient' },
-  { email: 'paul.essama@mail.com', password: DEMO_PASSWORD, nom: 'Paul Essama', role: 'patient' },
-  { email: 'claire.abena@mail.com', password: DEMO_PASSWORD, nom: 'Claire Abena', role: 'patient' },
-  { email: 'sylvie.bella@mail.com', password: DEMO_PASSWORD, nom: 'Sylvie Bella', role: 'patient' },
-  { email: 'alain.mbarga@mail.com', password: DEMO_PASSWORD, nom: 'Alain Mbarga', role: 'patient' },
-  { email: 'michel.etoo@mail.com', password: DEMO_PASSWORD, nom: "Michel Eto'o", role: 'patient' },
-  { email: 'odile.fouda@mail.com', password: DEMO_PASSWORD, nom: 'Odile Fouda', role: 'patient' },
-  { email: 'rene.tabi@mail.com', password: DEMO_PASSWORD, nom: 'René Tabi', role: 'patient' },
-  { email: 'florence.eyenga@mail.com', password: DEMO_PASSWORD, nom: 'Florence Eyenga', role: 'patient' },
-];
-
-export const comptesPharmacies: Compte[] = [
-  { email: 'contact@pharmaciedupalais.com', password: DEMO_PASSWORD, nom: 'Pharmacie du Palais', role: 'pharmacie', pharmacieId: 1 },
-  { email: 'contact@pharmaciecentrale.com', password: DEMO_PASSWORD, nom: 'Pharmacie Centrale', role: 'pharmacie', pharmacieId: 2 },
-  { email: 'contact@pharmacienlongkak.com', password: DEMO_PASSWORD, nom: 'Pharmacie Nlongkak', role: 'pharmacie', pharmacieId: 3 },
-  { email: 'contact@pharmaciedelajoie.com', password: DEMO_PASSWORD, nom: 'Pharmacie de la Joie', role: 'pharmacie', pharmacieId: 4 },
-];
-
-export const comptesAdmin: Compte[] = [
-  { email: 'admin@proximedoc.com', password: DEMO_PASSWORD, nom: 'Administrateur', role: 'admin' },
-];
-
-export const comptes: Compte[] = [...comptesPatients, ...comptesPharmacies, ...comptesAdmin];
-
 export const demandesPharmacie: Pharmacie[] = [
   {
     id: 10,
