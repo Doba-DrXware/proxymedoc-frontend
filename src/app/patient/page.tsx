@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useStore } from '@/lib/store-context';
 import { Pharmacie } from '@/lib/data';
 import MedicamentCard from '@/components/MedicamentCard';
-import { Pill, LogOut, Search, Upload, CheckCircle, Phone, MapPin, Clock, FileText, ChevronRight, User, Trash2, ShoppingBag } from 'lucide-react';
+import { Pill, LogOut, Search, Phone, MapPin, Clock, ChevronRight, CheckCircle, Upload, ShoppingBag, Trash2, User, FileText } from 'lucide-react';
 
 type SortOption = 'optimise' | 'distance' | 'prix';
 
@@ -27,7 +27,7 @@ const SEARCH_STATE_KEY = 'proxymedoc-search-state';
 
 export default function PatientPage() {
   const { userName, logout } = useAuth();
-  const { pharmacies, cart, removeFromCart } = useStore();
+  const { pharmacies: localPharmacies, cart, removeFromCart } = useStore();
   const router = useRouter();
 
   const [storedSearchState] = useState<SearchState | null>(() => {
@@ -51,6 +51,49 @@ export default function PatientPage() {
   const [selectedMedicament, setSelectedMedicament] = useState<string | null>(storedSearchState?.selectedMedicament ?? null);
   const [selectedPharma, setSelectedPharma] = useState<Pharmacie | null>(null);
   const [ordoExpanded, setOrdoExpanded] = useState(false);
+  const [pharmacies, setPharmacies] = useState<Pharmacie[]>(localPharmacies);
+  const [loadingPharmacies, setLoadingPharmacies] = useState(true);
+
+  useEffect(() => {
+    const loadPharmacies = async () => {
+      try {
+        const res = await fetch('http://localhost:8080/api/pharmacies/with-stocks');
+        if (!res.ok) throw new Error('API indisponible');
+        const data = await res.json();
+        const mapped = (data || []).map((ph: any) => ({
+          id: ph.id,
+          nom: ph.nom,
+          adresse: ph.adresse || 'Adresse non renseignée',
+          distance: 0,
+          garde: Boolean(ph.garde),
+          telephone: ph.telephone || '+237 6XX XXX XXX',
+          horaires: ph.horaires || 'Horaires non renseignés',
+          statut: ph.statut === 'active' ? 'active' : ph.statut === 'suspendue' ? 'inactive' : 'attente',
+          score_ia: ph.score_ia || 0,
+          latitude: ph.latitude || 0,
+          longitude: ph.longitude || 0,
+          meds: (ph.meds || []).map((med: any) => ({
+            nom: med.nom,
+            prix: Number(med.prix ?? 0),
+            stock: Number(med.stock ?? 0),
+            description: med.description || 'Description indisponible',
+            dispo: Boolean(med.dispo),
+            image: med.image || '/medicaments/default.svg',
+            categorie: med.categorie || 'autre',
+          })),
+          contact: ph.contact || ph.nom,
+          licence: ph.licence,
+        })) as Pharmacie[];
+        setPharmacies(mapped.length > 0 ? mapped : localPharmacies);
+      } catch {
+        setPharmacies(localPharmacies);
+      } finally {
+        setLoadingPharmacies(false);
+      }
+    };
+
+    loadPharmacies();
+  }, [localPharmacies]);
 
   const medicamentSuggestions = medicamentRecherche.trim()
     ? Array.from(new Set(
@@ -62,18 +105,16 @@ export default function PatientPage() {
     )).sort()
     : [];
 
-  const lancerRecherche = () => {
+  const normalizeText = (value: string) => value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+
+  const lancerRecherche = async () => {
     if (!medInput.trim() && !ordoUploaded) return;
     setSelectedMedicament(null);
-    const res = pharmacies
-      .filter(ph => parseFloat(rayon) >= ph.distance)
-      .map(ph => ({
-        ...ph,
-        meds: ph.meds.map(m => ({ ...m, dispo: m.stock > 0 })),
-      }));
-    const sorted = sortPharmacies(res, sortBy);
-    setResultats(sorted);
-    setSearched(true);
+    const query = medInput.trim() || 'medicament';
+    await chercherPharmaciesPourMedicament(query);
   };
 
   const sortPharmacies = (list: Pharmacie[], by: SortOption) => {
@@ -132,31 +173,71 @@ export default function PatientPage() {
     window.sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(savedState));
   }, [medInput, medicamentRecherche, localisation, rayon, ordoUploaded, resultats, searched, sortBy, selectedMedicament, tab]);
 
-  const chercherPharmaciesPourMedicament = (termeRecherche: string) => {
-    const terme = termeRecherche.trim().toLowerCase();
-    const res = pharmacies
-      .filter(ph => parseFloat(rayon) >= ph.distance)
-      .map(ph => ({
-        ...ph,
-        meds: ph.meds.filter(m => m.nom.toLowerCase().includes(terme)).map(m => ({ ...m, dispo: m.stock > 0 })),
-      }))
-      .filter(ph => ph.meds.length > 0);
+  const chercherPharmaciesPourMedicament = async (termeRecherche: string) => {
+    const terme = termeRecherche.trim();
+    if (!terme) {
+      setResultats([]);
+      setSearched(true);
+      return;
+    }
 
-    const sorted = sortPharmacies(res, sortBy);
-    setResultats(sorted);
-    setSearched(true);
+    try {
+      const params = new URLSearchParams({ q: terme, radius: rayon });
+      const response = await fetch(`http://localhost:8080/api/pharmacies/search?${params.toString()}`);
+      if (!response.ok) throw new Error('Recherche indisponible');
+      const data = await response.json();
+      const mapped = (data || []).map((ph: any) => ({
+        id: ph.id,
+        nom: ph.nom,
+        adresse: ph.adresse || 'Adresse non renseignée',
+        distance: 0,
+        garde: Boolean(ph.garde),
+        telephone: ph.telephone || '+237 6XX XXX XXX',
+        horaires: ph.horaires || 'Horaires non renseignés',
+        statut: ph.statut === 'active' ? 'active' : ph.statut === 'suspendue' ? 'inactive' : 'attente',
+        score_ia: ph.score_ia || 0,
+        latitude: ph.latitude || 0,
+        longitude: ph.longitude || 0,
+        meds: (ph.meds || []).filter((med: any) => normalizeText(med.nom).includes(normalizeText(terme))).map((med: any) => ({
+          nom: med.nom,
+          prix: Number(med.prix ?? 0),
+          stock: Number(med.stock ?? 0),
+          description: med.description || 'Description indisponible',
+          dispo: Boolean(med.dispo),
+          image: med.image || '/medicaments/default.svg',
+          categorie: med.categorie || 'autre',
+        })),
+        contact: ph.contact || ph.nom,
+        licence: ph.licence,
+      })) as Pharmacie[];
+
+      const filtered = mapped.filter(ph => ph.meds.length > 0);
+      const sorted = sortPharmacies(filtered, sortBy);
+      setResultats(sorted);
+      setSearched(true);
+    } catch {
+      const fallback = pharmacies
+        .filter(ph => parseFloat(rayon) >= ph.distance)
+        .map(ph => ({
+          ...ph,
+          meds: ph.meds.filter(m => normalizeText(m.nom).includes(normalizeText(terme))).map(m => ({ ...m, dispo: m.stock > 0 })),
+        }))
+        .filter(ph => ph.meds.length > 0);
+      setResultats(sortPharmacies(fallback, sortBy));
+      setSearched(true);
+    }
   };
 
   const sélectionnerMedicament = (nom: string) => {
     setSelectedMedicament(nom);
     setMedicamentRecherche(nom);
-    chercherPharmaciesPourMedicament(nom);
+    void chercherPharmaciesPourMedicament(nom);
   };
 
   const rechercherParMedicament = () => {
     if (!medicamentRecherche.trim()) return;
     setSelectedMedicament(medicamentRecherche.trim());
-    chercherPharmaciesPourMedicament(medicamentRecherche);
+    void chercherPharmaciesPourMedicament(medicamentRecherche);
   };
 
   if (selectedPharma) {
@@ -247,7 +328,10 @@ export default function PatientPage() {
         {tab === 'recherche' && (
           <>
             <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-5">
-              <h2 className="font-semibold mb-4 text-slate-800">Rechercher un medicament</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-slate-800">Rechercher un medicament</h2>
+                <span className="text-xs text-slate-500">{loadingPharmacies ? 'Chargement…' : `${pharmacies.length} pharmacies`}</span>
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"

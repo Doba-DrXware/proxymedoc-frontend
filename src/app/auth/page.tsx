@@ -1,13 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { comptes } from '@/lib/data';
-import { Pill, Building2, Shield, Eye, EyeOff, Upload, CheckCircle, User, AlertCircle } from 'lucide-react';
+import { Pill, Building2, Shield, User, Eye, EyeOff, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AuthPage() {
-  const { login } = useAuth();
+  const { login, role } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (role) {
+      const target = role === 'admin' ? '/admin' : role === 'pharmacie' ? '/pharmacie' : '/patient';
+      router.replace(target);
+    }
+  }, [role, router]);
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [regRole, setRegRole] = useState<'patient' | 'pharmacie'>('patient');
   const [showPass, setShowPass] = useState(false);
@@ -36,17 +44,34 @@ export default function AuthPage() {
     setLoginError('');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const compte = comptes.find(
-      c => c.email.toLowerCase() === email.trim().toLowerCase() && c.password === pass
-    );
-    if (!compte) {
-      setLoginError('Email ou mot de passe incorrect.');
-      return;
-    }
     setLoginError('');
-    login(compte.role, compte.nom, compte.pharmacieId);
+
+    try {
+      const res = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password: pass }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || 'Identifiants invalides');
+      }
+
+      const role = data.user?.role === 'pharmacie' ? 'pharmacie' : data.user?.role === 'admin' ? 'admin' : 'patient';
+      login(role, data.user?.name || email, data.user?.pharmacieId ?? undefined);
+    } catch (error) {
+      const compte = comptes.find(
+        c => c.email.toLowerCase() === email.trim().toLowerCase() && c.password === pass
+      );
+      if (compte) {
+        login(compte.role, compte.nom, compte.pharmacieId);
+      } else {
+        setLoginError(error instanceof Error ? error.message : 'Email ou mot de passe incorrect.');
+      }
+    }
   };
 
   useEffect(() => {
