@@ -48,7 +48,7 @@ export default function AdminPage() {
       startSuspendPharmacie(id);
       return;
     }
-    updatePharmacie(id, { statut: 'active', motifSuspension: null });
+    updatePharmacie(id, { statut: 'active', motifSuspension: undefined });
   };
 
   const enAttente = demandes.filter(d => d.statut === 'attente');
