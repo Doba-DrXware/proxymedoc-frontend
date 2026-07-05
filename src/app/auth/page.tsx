@@ -52,6 +52,7 @@ export default function AuthPage() {
   const [pharmacyImages, setPharmacyImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
   const dayOrder = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -168,6 +169,26 @@ export default function AuthPage() {
     return () => previews.forEach(URL.revokeObjectURL);
   }, [pharmacyImages]);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = window.setTimeout(() => setNotification(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notification]);
+
+  const toastNotification = notification ? (
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border border-green-200 bg-green-50 p-4 shadow-lg shadow-slate-900/5 text-sm text-green-900">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
+          <CheckCircle size={18} />
+        </span>
+        <div>
+          <p className="font-semibold">Inscription réussie</p>
+          <p className="mt-1 text-sm text-slate-700">{notification}</p>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const handleLegalDocsChange = (files: FileList | null) => {
     if (!files) return;
     const newFiles = Array.from(files);
@@ -184,6 +205,30 @@ export default function AuthPage() {
       next[index] = file;
       return next.filter((item): item is File => item !== null);
     });
+  };
+
+  const clearPharmacyForm = () => {
+    setRegRole('pharmacie');
+    setRegEmail('');
+    setRegPhone('');
+    setRegLicence('');
+    setRegAdresse('');
+    setRegPassword('');
+    setRegLastName('');
+    setRegFirstName('');
+    setRegPharmacyName('');
+    setRegPharmacyPhone('');
+    setRegLatitude('');
+    setRegLongitude('');
+    setRegHoraires('');
+    setSelectedDays(['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']);
+    setCurrentDayIndex(0);
+    setCustomizedDays({});
+    setRegEstDeGarde(false);
+    setLegalDocs([]);
+    setPharmacyImages([]);
+    setFormErrors({});
+    setImagePreviews([]);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -269,7 +314,8 @@ export default function AuthPage() {
             setFormErrors({ general: 'Inscription réussie mais aucune session fournie par le serveur. Veuillez vous connecter.' });
           }
         } else {
-          setSubmitted(true);
+          setNotification('Inscription réussie ! Votre pharmacie sera validée par l’administrateur sous 24 à 48h.');
+          clearPharmacyForm();
         }
       } else {
         setFormErrors(data.errors ?? { general: data.message ?? 'Validation échouée' });
@@ -301,7 +347,9 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+    <>
+      {toastNotification}
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
       <div className={`w-full ${tab === 'login' ? 'max-w-md' : 'max-w-5xl'}`}>
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
@@ -592,5 +640,6 @@ export default function AuthPage() {
 
       </div>
     </div>
+    </>
   );
 }
