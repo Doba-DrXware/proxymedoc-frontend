@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useStore } from '@/lib/store-context';
 import { Medicament, Pharmacie, getMedicamentCategory, getMedicamentImage } from '@/lib/data';
-import { Building2, LogOut, Plus, Trash2, CheckCircle, Clock, Phone, MapPin, Package, Bell, FileText } from 'lucide-react';
+import { Building2, LogOut, Plus, CheckCircle, Clock, Phone, MapPin, Package, Bell, FileText } from 'lucide-react';
 import { PharmacyImage } from '@/components/PharmacyImage';
+import PharmacieCatalogue from '@/components/PharmacieCatalogue';
 
 const mapBackendPharmacy = (payload: any, fallbackId: number | null): Pharmacie => {
   const meds = Array.isArray(payload?.meds)
     ? payload.meds.map((med: any) => ({
-        nom: med?.nom ?? 'Médicament',
+        id: med?.id != null ? Number(med.id) : undefined,
+        nom: med?.nom ?? med?.denomination ?? 'Médicament',
         prix: Number(med?.prix ?? med?.prixUnitaire ?? 0),
         stock: Number(med?.stock ?? 0),
         description: med?.description ?? 'Notice du médicament non disponible.',
@@ -121,26 +123,27 @@ const formatHours = (schedule?: DaySchedule | null) => {
 };
 
 const readErrorMessage = async (response: Response) => {
+  const statusText = `${response.status} ${response.statusText}`;
   const text = await response.text();
-  if (!text) return 'Erreur serveur';
+  if (!text) return `Erreur serveur (${statusText})`;
 
   try {
     const parsed = JSON.parse(text);
     if (parsed && typeof parsed === 'object') {
       const candidate = (parsed as Record<string, unknown>).message;
       if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate;
+        return `${candidate} (${statusText})`;
       }
       const fallback = (parsed as Record<string, unknown>).error;
       if (typeof fallback === 'string' && fallback.trim()) {
-        return fallback;
+        return `${fallback} (${statusText})`;
       }
     }
   } catch {
     // fallback to raw text below
   }
 
-  return text;
+  return `${text} (${statusText})`;
 };
 
 type NewMedDraft = {
@@ -162,10 +165,11 @@ export default function PharmaciePage() {
   const fallbackPharma = pharmacies.find(p => p.id === pharmacieId) ?? pharmacies[0];
 
   const [profile, setProfile] = useState<Pharmacie | null>(fallbackPharma ?? null);
-  const [catalogue, setCatalogue] = useState<Medicament[]>(fallbackPharma?.meds.map(m => ({ ...m })) ?? []);
+  const [catalogue, setCatalogue] = useState<Medicament[]>([]);
   const [garde, setGarde] = useState(Boolean(fallbackPharma?.garde));
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [catalogueError, setCatalogueError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newMed, setNewMed] = useState<NewMedDraft>({
     denomination: '',
@@ -348,28 +352,6 @@ export default function PharmaciePage() {
   };
 
   // Catalogue inline edit (prix / stock)
-  const [editingMedIndex, setEditingMedIndex] = useState<number | null>(null);
-  const [editPrice, setEditPrice] = useState('');
-  const [editStock, setEditStock] = useState('');
-
-  const startEditMed = (index: number) => {
-    const m = catalogue[index];
-    setEditPrice(String(m.prix));
-    setEditStock(String(m.stock));
-    setEditingMedIndex(index);
-  };
-
-  const saveEditMed = (index: number) => {
-    const prix = parseInt(editPrice) || 0;
-    const stock = parseInt(editStock) || 0;
-    const updated = catalogue.map((m, i) => i === index ? { ...m, prix, stock } : m);
-    setCatalogue(updated);
-    updateCatalogue(pharma.id, updated);
-    setEditingMedIndex(null);
-  };
-
-  const cancelEditMed = () => setEditingMedIndex(null);
-
   const openOrdonnanceModal = (ordonnance: { id: number; createdAt: string; fileUrl: string | null }) => {
     setSelectedOrdonnance(ordonnance);
   };
@@ -430,6 +412,7 @@ export default function PharmaciePage() {
       formData.append('categorie', categorie);
       formData.append('description', description);
       formData.append('prixUnitaire', String(prixUnitaire));
+      formData.append('stock', String(stock));
       formData.append('formeGalenique', newMed.formeGalenique.trim());
       formData.append('dosage', newMed.dosage.trim());
       formData.append('exigeOrdonnance', String(newMed.exigeOrdonnance));
@@ -453,6 +436,7 @@ export default function PharmaciePage() {
         const saved = await res.json();
         createdMed = {
           ...fallbackMed,
+          id: saved?.id ?? undefined,
           nom: saved?.nom ?? nom,
           prix: Number(saved?.prixUnitaire ?? prixUnitaire),
           description: saved?.description ?? description,
@@ -467,18 +451,18 @@ export default function PharmaciePage() {
         };
       }
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Impossible d’ajouter le médicament.');
-    }
+        setProfileError(error instanceof Error ? error.message : 'Impossible d’ajouter le médicament.');
+        return;
+      }
 
-    const updated = [...catalogue, createdMed];
-    setCatalogue(updated);
-    if (pharma?.id) {
-      updateCatalogue(pharma.id, updated);
-    }
-    resetNewMedForm();
-    setShowAdd(false);
-  };
-
+      const updated = [...catalogue, createdMed];
+      setCatalogue(updated);
+      if (pharma?.id) {
+        updateCatalogue(pharma.id, updated);
+      }
+      resetNewMedForm();
+      setShowAdd(false);
+    };
   const removeMed = (index: number) => {
     const updated = catalogue.filter((_, i) => i !== index); // index au lieu du nom pour éviter les doublons
     setCatalogue(updated);
@@ -553,8 +537,8 @@ export default function PharmaciePage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Bell size={18} className="text-slate-400" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">3</span>
+            <Bell size={18} className="text-slate-300 opacity-70" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-slate-300 text-slate-700 rounded-full text-xs flex items-center justify-center opacity-80">3</span>
           </div>
           <button onClick={logout} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-red-500 transition-colors">
             <LogOut size={15} /> Déconnexion
@@ -562,7 +546,7 @@ export default function PharmaciePage() {
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto p-6">
         <div className="flex gap-1 mb-6 border-b border-slate-200">
           {([['profil', 'Profil'], ['catalogue', 'Catalogue'], ['ordonnances', 'Ordonnances']] as const).map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
@@ -588,38 +572,42 @@ export default function PharmaciePage() {
             <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-5">
               <h2 className="font-semibold mb-4">Informations & Statut</h2>
-              <div className="h-28 rounded-xl mb-4 overflow-hidden">
-                <PharmacyImage
-                  src={pharmacyImage}
-                  alt={`Photo de ${pharma?.nom || 'la pharmacie'}`}
-                  className="w-full h-full object-cover"
-                  fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-r from-green-500 to-green-700 text-white"
-                />
-              </div>
-              <div className="mb-3">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Nom</p>
-                <p className="font-semibold text-slate-800">{pharma?.nom || 'Pharmacie'}</p>
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-400 flex items-center gap-1"><MapPin size={13} /> Adresse</span>
-                  <span className="font-medium">{pharma?.adresse || 'Non renseignée'}</span>
+              <div className="mb-4">
+                <div className="flex justify-center mb-4">
+                  <div className="w-2/3 rounded-xl overflow-hidden">
+                    <PharmacyImage
+                      src={pharmacyImage}
+                      alt={`Photo de ${pharma?.nom || 'la pharmacie'}`}
+                      className="w-full h-full object-cover object-center"
+                      fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-r from-green-500 to-green-700 text-white"
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-400 flex items-center gap-1"><Phone size={13} /> Téléphone</span>
-                  <span className="font-medium">{pharma?.telephone || 'Non renseigné'}</span>
+                <div className="mb-3">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Nom</p>
+                  <p className="font-semibold text-slate-800">{pharma?.nom || 'Pharmacie'}</p>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-400">Licence</span>
-                  <span className="font-medium">{pharma?.licence || 'Non renseignée'}</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-slate-400">Statut de garde</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${garde ? 'badge-green' : 'bg-red-100 text-red-600'}`}>
-                      {garde ? 'De garde' : 'Pas de garde'}
-                    </span>
-                    <button onClick={toggleGarde} className="text-xs text-blue-600 hover:underline">Modifier</button>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-400 flex items-center gap-1"><MapPin size={13} /> Adresse</span>
+                    <span className="font-medium">{pharma?.adresse || 'Non renseignée'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-400 flex items-center gap-1"><Phone size={13} /> Téléphone</span>
+                    <span className="font-medium">{pharma?.telephone || 'Non renseigné'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="text-slate-400">Licence</span>
+                    <span className="font-medium">{pharma?.licence || 'Non renseignée'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-400">Statut de garde</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${garde ? 'badge-green' : 'bg-red-100 text-red-600'}`}>
+                        {garde ? 'De garde' : 'Pas de garde'}
+                      </span>
+                      <button onClick={toggleGarde} className="text-xs text-blue-600 hover:underline">Modifier</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -753,6 +741,12 @@ export default function PharmaciePage() {
               </button>
             </div>
 
+            {catalogueError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 mb-4 text-sm text-red-600">
+                {catalogueError}
+              </div>
+            )}
+
             {showAdd && (
               <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -817,109 +811,19 @@ export default function PharmaciePage() {
               </div>
             )}
 
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-medium text-slate-500">Médicament</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-500">Prix (FCFA)</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-500">Stock</th>
-                    <th className="text-center px-4 py-3 font-medium text-slate-500">Statut</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {catalogue.map((m, index) => (
-                    <tr key={index} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium">{m.nom}</td>
-                      <td className="px-4 py-3 text-right">
-                        {editingMedIndex === index ? (
-                          <input className="input-field text-right" value={editPrice} onChange={e => setEditPrice(e.target.value)} />
-                        ) : (
-                          m.prix.toLocaleString()
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {editingMedIndex === index ? (
-                          <input className="input-field text-right" value={editStock} onChange={e => setEditStock(e.target.value)} />
-                        ) : (
-                          m.stock
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.stock > 0 ? 'badge-green' : 'bg-red-100 text-red-600'}`}>
-                          {m.stock > 0 ? 'En stock' : 'Rupture'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {editingMedIndex === index ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => saveEditMed(index)} className="text-green-600" title="Enregistrer"><CheckCircle size={16} /></button>
-                            <button onClick={cancelEditMed} className="text-slate-500">Annuler</button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => startEditMed(index)} className="text-blue-600 hover:text-blue-800 text-sm">Modifier</button>
-                            <button onClick={() => removeMed(index)} className="text-red-400 hover:text-red-600">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <PharmacieCatalogue meds={catalogue} pharmacyId={pharma?.id ?? 0} onUpdate={setCatalogue} />
           </div>
         )}
 
         {tab === 'ordonnances' && (
-            <div>
-            <h2 className="font-semibold mb-4">Ordonnances reçues</h2>
-            <div className="space-y-3">
-              {ordonnances.map((o) => (
-                <div key={o.id} className="bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium flex items-center gap-2"><FileText className="text-slate-500" size={16} /> Ordonnance #{o.id}</div>
-                    <div className="text-xs text-slate-400">{timeAgo(o.createdAt)}</div>
-                  </div>
-                  <div className="mt-3">
-                    {o.fileUrl ? (
-                      <button onClick={() => openOrdonnanceModal(o)} className="inline-flex items-center gap-2 text-sm bg-green-50 border border-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100">
-                        <FileText size={14} /> Consulter ordonnance
-                      </button>
-                    ) : (
-                      <button disabled className="inline-flex items-center gap-2 text-sm bg-slate-50 border border-slate-100 text-slate-300 px-3 py-1.5 rounded-lg">Aucun fichier</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+            <h2 className="font-semibold mb-2">Ordonnances</h2>
+            <p className="text-sm text-slate-500">Le traitement des ordonnances sera bientôt disponible.</p>
           </div>
         )}
       </div>
 
-      {selectedOrdonnance ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-slate-900/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <div>
-                <div className="text-sm text-slate-500">Ordonnance #{selectedOrdonnance.id}</div>
-                <div className="text-xs text-slate-400">{timeAgo(selectedOrdonnance.createdAt)}</div>
-              </div>
-              <button onClick={closeOrdonnanceModal} className="text-slate-500 hover:text-slate-800">Fermer</button>
-            </div>
-            <div className="h-[70vh] bg-slate-100">
-              {selectedOrdonnance.fileUrl ? (
-                <iframe src={selectedOrdonnance.fileUrl} className="h-full w-full border-0" title={`Ordonnance ${selectedOrdonnance.id}`} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-slate-500">Aucun fichier disponible</div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {/* Ordonnance modal removed - feature coming soon */}
     </div>
   );
 }

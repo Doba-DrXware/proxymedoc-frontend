@@ -1,6 +1,7 @@
 export type Role = 'patient' | 'pharmacie' | 'admin';
 
 export interface Medicament {
+  id?: number;
   nom: string;
   prix: number;
   stock: number;

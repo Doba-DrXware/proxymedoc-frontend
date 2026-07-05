@@ -36,20 +36,43 @@ export function PharmacyImage({ src, alt, className, fallbackClassName }: Pharma
     setHasError(false);
   }, [src]);
 
+  // Fixed 1:1 ratio box using padding-top trick so the image fills the box
+  const wrapperStyle: React.CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    paddingTop: '100%', // 1 / 1 = 100%
+    overflow: 'hidden',
+  };
+
+  const imgStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    objectPosition: 'center',
+  };
+
   if (!resolvedSrc || hasError) {
     return (
-      <div className={fallbackClassName ?? 'flex h-full w-full items-center justify-center bg-gradient-to-r from-green-500 to-green-700 text-white'}>
-        <Building2 size={48} />
+      <div style={wrapperStyle} className={fallbackClassName ?? ''}>
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-green-500 to-green-700 text-white">
+          <Building2 size={48} />
+        </div>
       </div>
     );
   }
 
   return (
-    <img
-      src={resolvedSrc}
-      alt={alt}
-      className={className ?? 'h-full w-full object-cover'}
-      onError={() => setHasError(true)}
-    />
+    <div style={wrapperStyle}>
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        className={className ?? 'absolute top-0 left-0 w-full h-full object-cover object-center'}
+        style={imgStyle}
+        onError={() => setHasError(true)}
+      />
+    </div>
   );
 }
