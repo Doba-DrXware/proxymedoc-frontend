@@ -351,7 +351,7 @@ export default function AuthPage() {
     <>
       {toastNotification}
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
-      <div className={`w-full ${tab === 'login' ? 'max-w-md' : 'max-w-5xl'}`}>
+      <div className={`w-full ${tab === 'login' ? 'max-w-md' : 'max-w-3xl'}`}>
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Pill className="text-white" size={28} />
@@ -560,18 +560,35 @@ export default function AuthPage() {
                       Pharmacie de garde
                     </label>
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Documents légaux (Agrément, Registre de Commerce)</label>
+                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Documents légaux (Agrément MINSANTE, Registre de Commerce)</label>
                       <div className="space-y-3">
                         <div className="grid gap-3 lg:grid-cols-2">
-                          <label className="flex flex-col gap-2">
-                            <span className="text-sm font-medium text-slate-700">Agrément (Ministère de la Santé)</span>
-                            <input type="file" accept="application/pdf,image/*" onChange={e => handleAgrementChange(e.target.files?.[0] ?? null)} />
-                            {agrementFile && <p className="text-xs text-emerald-700">{agrementFile.name}</p>}
+                          <label className="group cursor-pointer rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/70 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100">
+                            <input
+                              type="file"
+                              accept="application/pdf,image/*"
+                              className="sr-only"
+                              onChange={e => handleAgrementChange(e.target.files?.[0] ?? null)}
+                            />
+                            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm mx-auto">
+                              <Upload size={18} />
+                            </div>
+                            <p className="text-sm font-medium text-slate-700">Agrément du Ministère de la Santé</p>
+                            <p className="mt-1 text-xs text-slate-500">{agrementFile ? agrementFile.name : 'Glissez ou cliquez pour ajouter'}</p>
                           </label>
-                          <label className="flex flex-col gap-2">
-                            <span className="text-sm font-medium text-slate-700">Preuve d'inscription (Registre de Commerce)</span>
-                            <input type="file" accept="application/pdf,image/*" onChange={e => handleFichierRcChange(e.target.files?.[0] ?? null)} />
-                            {fichierRcFile && <p className="text-xs text-emerald-700">{fichierRcFile.name}</p>}
+
+                          <label className="group cursor-pointer rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/70 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100">
+                            <input
+                              type="file"
+                              accept="application/pdf,image/*"
+                              className="sr-only"
+                              onChange={e => handleFichierRcChange(e.target.files?.[0] ?? null)}
+                            />
+                            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm mx-auto">
+                              <Upload size={18} />
+                            </div>
+                            <p className="text-sm font-medium text-slate-700">Inscription au Registre de Commerce (Preuve)</p>
+                            <p className="mt-1 text-xs text-slate-500">{fichierRcFile ? fichierRcFile.name : 'Glissez ou cliquez pour ajouter'}</p>
                           </label>
                         </div>
                       </div>

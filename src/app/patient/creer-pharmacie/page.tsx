@@ -102,7 +102,7 @@ export default function CreerPharmaciePage() {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Agrément (Ministère de la Santé)</label>
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Agrément du Ministère de la Santé</label>
               <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-200 p-4 text-center transition hover:border-blue-400 hover:bg-blue-50">
                 <input
                   type="file"
@@ -115,7 +115,7 @@ export default function CreerPharmaciePage() {
               </label>
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Preuve d'inscription (Registre de Commerce)</label>
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Inscription au Registre de Commerce</label>
               <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-200 p-4 text-center transition hover:border-blue-400 hover:bg-blue-50">
                 <input
                   type="file"
