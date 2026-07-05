@@ -247,9 +247,14 @@ export default function AuthPage() {
         body,
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setFormErrors(data.errors ?? { general: data.message ?? 'Erreur serveur' });
+        // Add explicit hint when backend returns 500 (common with OneDrive/Drive files)
+        const baseMessage = data?.message ?? res.statusText ?? 'Erreur serveur';
+        const message = res.status === 500
+          ? `${baseMessage} Vérifiez que les fichiers sont accessibles localement (évitez les dossiers OneDrive/Drive synchronisés) et réessayez.`
+          : baseMessage;
+        setFormErrors(data?.errors ?? { general: message });
         setLoading(false);
         return;
       }
