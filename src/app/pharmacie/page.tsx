@@ -11,12 +11,18 @@ const mapBackendPharmacy = (payload: any, fallbackId: number | null): Pharmacie 
   const meds = Array.isArray(payload?.meds)
     ? payload.meds.map((med: any) => ({
         nom: med?.nom ?? 'Médicament',
-        prix: Number(med?.prix ?? 0),
+        prix: Number(med?.prix ?? med?.prixUnitaire ?? 0),
         stock: Number(med?.stock ?? 0),
         description: med?.description ?? 'Notice du médicament non disponible.',
         dispo: Boolean(med?.dispo),
-        image: med?.image ?? '/medicaments/default.svg',
+        image: med?.image ?? med?.imageUrl ?? '/medicaments/default.svg',
         categorie: med?.categorie ?? 'autre',
+        denomination: med?.denomination ?? med?.nom ?? '',
+        formeGalenique: med?.formeGalenique ?? '',
+        dosage: med?.dosage ?? '',
+        exigeOrdonnance: Boolean(med?.exigeOrdonnance),
+        imageUrl: med?.imageUrl ?? '',
+        noticeUrl: med?.noticeUrl ?? '',
       }))
     : [];
 
@@ -137,6 +143,17 @@ const readErrorMessage = async (response: Response) => {
   return text;
 };
 
+type NewMedDraft = {
+  denomination: string;
+  categorie: Medicament['categorie'];
+  description: string;
+  prixUnitaire: string;
+  formeGalenique: string;
+  dosage: string;
+  exigeOrdonnance: boolean;
+  stock: string;
+};
+
 export default function PharmaciePage() {
   const { userName, pharmacieId, logout } = useAuth();
   const { pharmacies, updateCatalogue, updateGarde, updatePharmacie } = useStore();
@@ -150,7 +167,18 @@ export default function PharmaciePage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newMed, setNewMed] = useState({ nom: '', prix: '', stock: '' });
+  const [newMed, setNewMed] = useState<NewMedDraft>({
+    denomination: '',
+    categorie: 'autre',
+    description: '',
+    prixUnitaire: '',
+    formeGalenique: '',
+    dosage: '',
+    exigeOrdonnance: false,
+    stock: '',
+  });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [noticeFile, setNoticeFile] = useState<File | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [daySchedules, setDaySchedules] = useState<Record<string, DaySchedule>>(() => parseHoraires(fallbackPharma?.horaires));
@@ -350,22 +378,104 @@ export default function PharmaciePage() {
     setSelectedOrdonnance(null);
   };
 
-  const addMed = () => {
-    if (!newMed.nom) return;
-    const nom = newMed.nom.trim();
-    const prix = parseInt(newMed.prix) || 0;
+  const resetNewMedForm = () => {
+    setNewMed({
+      denomination: '',
+      categorie: 'autre',
+      description: '',
+      prixUnitaire: '',
+      formeGalenique: '',
+      dosage: '',
+      exigeOrdonnance: false,
+      stock: '',
+    });
+    setPhotoFile(null);
+    setNoticeFile(null);
+  };
+
+  const addMed = async () => {
+    const denomination = newMed.denomination.trim();
+    if (!denomination) return;
+
+    const nom = denomination;
+    const prixUnitaire = parseFloat(newMed.prixUnitaire) || 0;
     const stock = parseInt(newMed.stock) || 0;
-    const updated = [...catalogue, {
+    const description = newMed.description.trim() || 'Notice du médicament non disponible.';
+    const categorie = newMed.categorie || getMedicamentCategory(nom);
+    const photoPreviewUrl = photoFile ? URL.createObjectURL(photoFile) : '';
+    const noticePreviewUrl = noticeFile ? URL.createObjectURL(noticeFile) : '';
+
+    const fallbackMed: Medicament = {
       nom,
-      prix,
+      prix: prixUnitaire,
       stock,
-      description: 'Notice du médicament non disponible.',
-      image: getMedicamentImage(nom),
-      categorie: getMedicamentCategory(nom),
-    }];
+      description,
+      image: photoPreviewUrl || getMedicamentImage(nom),
+      categorie,
+      denomination,
+      formeGalenique: newMed.formeGalenique.trim(),
+      dosage: newMed.dosage.trim(),
+      exigeOrdonnance: newMed.exigeOrdonnance,
+      imageUrl: photoPreviewUrl,
+      noticeUrl: noticePreviewUrl,
+    };
+
+    setProfileError(null);
+
+    let createdMed: Medicament = fallbackMed;
+    try {
+      const token = localStorage.getItem('proxymedoc_token');
+      const formData = new FormData();
+      formData.append('denomination', denomination);
+      formData.append('categorie', categorie);
+      formData.append('description', description);
+      formData.append('prixUnitaire', String(prixUnitaire));
+      formData.append('formeGalenique', newMed.formeGalenique.trim());
+      formData.append('dosage', newMed.dosage.trim());
+      formData.append('exigeOrdonnance', String(newMed.exigeOrdonnance));
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
+      if (noticeFile) {
+        formData.append('notice', noticeFile);
+      }
+
+      const res = await fetch('http://localhost:8080/api/medicaments/with-files', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorMessage = await readErrorMessage(res);
+        setProfileError(errorMessage || 'Le médicament a été ajouté localement mais l’enregistrement du backend a échoué.');
+      } else {
+        const saved = await res.json();
+        createdMed = {
+          ...fallbackMed,
+          nom: saved?.nom ?? nom,
+          prix: Number(saved?.prixUnitaire ?? prixUnitaire),
+          description: saved?.description ?? description,
+          image: saved?.imageUrl || fallbackMed.image,
+          categorie: (saved?.categorie ?? categorie) as Medicament['categorie'],
+          denomination: saved?.denomination ?? denomination,
+          formeGalenique: saved?.formeGalenique ?? fallbackMed.formeGalenique,
+          dosage: saved?.dosage ?? fallbackMed.dosage,
+          exigeOrdonnance: Boolean(saved?.exigeOrdonnance ?? fallbackMed.exigeOrdonnance),
+          imageUrl: saved?.imageUrl ?? fallbackMed.imageUrl,
+          noticeUrl: saved?.noticeUrl ?? fallbackMed.noticeUrl,
+        };
+      }
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Impossible d’ajouter le médicament.');
+    }
+
+    const updated = [...catalogue, createdMed];
     setCatalogue(updated);
-    updateCatalogue(pharma.id, updated); // propagation au store global
-    setNewMed({ nom: '', prix: '', stock: '' });
+    if (pharma?.id) {
+      updateCatalogue(pharma.id, updated);
+    }
+    resetNewMedForm();
     setShowAdd(false);
   };
 
@@ -645,23 +755,64 @@ export default function PharmaciePage() {
 
             {showAdd && (
               <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="col-span-1">
-                    <label className="field-label">Médicament</label>
-                    <input value={newMed.nom} onChange={e => setNewMed(p => ({ ...p, nom: e.target.value }))} placeholder="Doliprane 500mg" className="input-field" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="field-label">Dénomination du médicament</label>
+                    <input value={newMed.denomination} onChange={e => setNewMed(p => ({ ...p, denomination: e.target.value }))} placeholder="Amoxicilline" className="input-field" />
                   </div>
                   <div>
-                    <label className="field-label">Prix (FCFA)</label>
-                    <input type="number" value={newMed.prix} onChange={e => setNewMed(p => ({ ...p, prix: e.target.value }))} placeholder="1500" className="input-field" />
+                    <label className="field-label">Catégorie</label>
+                    <select value={newMed.categorie} onChange={e => setNewMed(p => ({ ...p, categorie: e.target.value as Medicament['categorie'] }))} className="input-field">
+                      <option value="antibiotique">Antibiotique</option>
+                      <option value="analgesique">Analgésique</option>
+                      <option value="anti-inflammatoire">Anti-inflammatoire</option>
+                      <option value="antidiabetique">Antidiabétique</option>
+                      <option value="antihypertenseur">Antihypertenseur</option>
+                      <option value="antiulcereux">Antiulcéreux</option>
+                      <option value="antihistaminique">Antihistaminique</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Prix unitaire (FCFA)</label>
+                    <input type="number" value={newMed.prixUnitaire} onChange={e => setNewMed(p => ({ ...p, prixUnitaire: e.target.value }))} placeholder="1500" className="input-field" />
+                  </div>
+                  <div>
+                    <label className="field-label">Forme galénique</label>
+                    <input value={newMed.formeGalenique} onChange={e => setNewMed(p => ({ ...p, formeGalenique: e.target.value }))} placeholder="Comprimé" className="input-field" />
+                  </div>
+                  <div>
+                    <label className="field-label">Dosage</label>
+                    <input value={newMed.dosage} onChange={e => setNewMed(p => ({ ...p, dosage: e.target.value }))} placeholder="500 mg" className="input-field" />
                   </div>
                   <div>
                     <label className="field-label">Stock</label>
                     <input type="number" value={newMed.stock} onChange={e => setNewMed(p => ({ ...p, stock: e.target.value }))} placeholder="50" className="input-field" />
                   </div>
+                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    <input type="checkbox" checked={newMed.exigeOrdonnance} onChange={e => setNewMed(p => ({ ...p, exigeOrdonnance: e.target.checked }))} />
+                    Exige une ordonnance
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div className="md:col-span-2">
+                    <label className="field-label">Description</label>
+                    <textarea value={newMed.description} onChange={e => setNewMed(p => ({ ...p, description: e.target.value }))} placeholder="Décrivez les indications et la notice du médicament" className="input-field min-h-24" />
+                  </div>
+                  <div>
+                    <label className="field-label">Photo du médicament (image)</label>
+                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] ?? null)} className="input-field" />
+                    {photoFile ? <p className="mt-1 text-xs text-slate-500">Fichier sélectionné : {photoFile.name}</p> : <p className="mt-1 text-xs text-slate-400">PNG, JPG ou WebP</p>}
+                  </div>
+                  <div>
+                    <label className="field-label">Notice du médicament (PDF)</label>
+                    <input type="file" accept=".pdf,application/pdf" onChange={e => setNoticeFile(e.target.files?.[0] ?? null)} className="input-field" />
+                    {noticeFile ? <p className="mt-1 text-xs text-slate-500">Fichier sélectionné : {noticeFile.name}</p> : <p className="mt-1 text-xs text-slate-400">PDF uniquement</p>}
+                  </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={addMed} className="btn-primary text-sm py-1.5 px-3 rounded-lg">Ajouter</button>
-                  <button onClick={() => setShowAdd(false)} className="text-sm py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50">Annuler</button>
+                  <button onClick={() => void addMed()} className="btn-primary text-sm py-1.5 px-3 rounded-lg">Ajouter</button>
+                  <button onClick={() => { setShowAdd(false); resetNewMedForm(); }} className="text-sm py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50">Annuler</button>
                 </div>
               </div>
             )}

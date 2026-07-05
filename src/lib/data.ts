@@ -8,6 +8,12 @@ export interface Medicament {
   dispo?: boolean;
   image: string;
   categorie: 'antibiotique' | 'analgesique' | 'anti-inflammatoire' | 'antidiabetique' | 'antihypertenseur' | 'antiulcereux' | 'antihistaminique' | 'autre';
+  denomination?: string;
+  formeGalenique?: string;
+  dosage?: string;
+  exigeOrdonnance?: boolean;
+  imageUrl?: string;
+  noticeUrl?: string;
 }
 
 const medDescriptions: Record<string, string> = {
