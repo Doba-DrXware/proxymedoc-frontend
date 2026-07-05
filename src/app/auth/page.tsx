@@ -48,7 +48,8 @@ export default function AuthPage() {
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [customizedDays, setCustomizedDays] = useState<Record<string, boolean>>({});
   const [regEstDeGarde, setRegEstDeGarde] = useState(false);
-  const [legalDocs, setLegalDocs] = useState<File[]>([]);
+  const [agrementFile, setAgrementFile] = useState<File | null>(null);
+  const [fichierRcFile, setFichierRcFile] = useState<File | null>(null);
   const [pharmacyImages, setPharmacyImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -189,13 +190,12 @@ export default function AuthPage() {
     </div>
   ) : null;
 
-  const handleLegalDocsChange = (files: FileList | null) => {
-    if (!files) return;
-    const newFiles = Array.from(files);
-    setLegalDocs(prev => {
-      const combined = [...prev, ...newFiles];
-      return combined.slice(0, 2);
-    });
+  const handleAgrementChange = (file: File | null) => {
+    setAgrementFile(file);
+  };
+
+  const handleFichierRcChange = (file: File | null) => {
+    setFichierRcFile(file);
   };
 
   const handlePharmacyImageChange = (index: number, file: File | null) => {
@@ -225,7 +225,8 @@ export default function AuthPage() {
     setCurrentDayIndex(0);
     setCustomizedDays({});
     setRegEstDeGarde(false);
-    setLegalDocs([]);
+    setAgrementFile(null);
+    setFichierRcFile(null);
     setPharmacyImages([]);
     setFormErrors({});
     setImagePreviews([]);
@@ -255,10 +256,10 @@ export default function AuthPage() {
         formData.append('horaires', regHoraires);
         formData.append('estDeGarde', String(regEstDeGarde));
         formData.append('password', regPassword);
-        formData.append('legalDocsCount', String(legalDocs.length));
+        formData.append('legalDocsCount', String((agrementFile ? 1 : 0) + (fichierRcFile ? 1 : 0)));
         formData.append('pharmacyImagesCount', String(pharmacyImages.length));
-        formData.append('documentsUploaded', String(legalDocs.length > 0));
-        legalDocs.forEach(file => formData.append('legalDocs', file));
+        if (agrementFile) formData.append('agrementMinsante', agrementFile);
+        if (fichierRcFile) formData.append('fichierRc', fichierRcFile);
         pharmacyImages.forEach(file => formData.append('pharmacyImages', file));
         body = formData;
       } else {
@@ -561,41 +562,18 @@ export default function AuthPage() {
                     <div>
                       <label className="block text-xs text-slate-500 mb-1.5 font-medium">Documents légaux (Agrément, Registre de Commerce)</label>
                       <div className="space-y-3">
-                        <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/70 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100">
-                          <input
-                            type="file"
-                            accept="application/pdf,image/*"
-                            multiple
-                            className="sr-only"
-                            onChange={e => handleLegalDocsChange(e.target.files)}
-                          />
-                          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm">
-                            <Upload size={18} />
-                          </div>
-                          <p className="text-sm font-medium text-slate-700">Glissez ou cliquez pour ajouter</p>
-                          <p className="mt-1 text-xs text-slate-500">PDF, PNG, JPG (max 2 fichiers)</p>
-                        </label>
-                        {legalDocs.length > 0 && (
-                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                            <p className="mb-2 text-sm font-semibold text-emerald-700">
-                              {legalDocs.length} fichier{legalDocs.length > 1 ? 's' : ''} sélectionné{legalDocs.length > 1 ? 's' : ''}
-                            </p>
-                            <ul className="space-y-2">
-                              {legalDocs.map((file, idx) => (
-                                <li key={idx} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-700">
-                                  <span className="truncate">{file.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setLegalDocs(prev => prev.filter((_, i) => i !== idx))}
-                                    className="flex-shrink-0 text-lg text-emerald-600 hover:text-red-600"
-                                  >
-                                    ×
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <label className="flex flex-col gap-2">
+                            <span className="text-sm font-medium text-slate-700">Agrément (Ministère de la Santé)</span>
+                            <input type="file" accept="application/pdf,image/*" onChange={e => handleAgrementChange(e.target.files?.[0] ?? null)} />
+                            {agrementFile && <p className="text-xs text-emerald-700">{agrementFile.name}</p>}
+                          </label>
+                          <label className="flex flex-col gap-2">
+                            <span className="text-sm font-medium text-slate-700">Preuve d'inscription (Registre de Commerce)</span>
+                            <input type="file" accept="application/pdf,image/*" onChange={e => handleFichierRcChange(e.target.files?.[0] ?? null)} />
+                            {fichierRcFile && <p className="text-xs text-emerald-700">{fichierRcFile.name}</p>}
+                          </label>
+                        </div>
                       </div>
                     </div>
                     <div>

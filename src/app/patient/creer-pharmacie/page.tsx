@@ -6,7 +6,8 @@ import { ArrowLeft, Upload, CheckCircle, Pill } from 'lucide-react';
 
 export default function CreerPharmaciePage() {
   const router = useRouter();
-  const [docs, setDocs] = useState<File[]>([]);
+  const [agrementFile, setAgrementFile] = useState<File | null>(null);
+  const [fichierRcFile, setFichierRcFile] = useState<File | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -18,9 +19,12 @@ export default function CreerPharmaciePage() {
     return () => urls.forEach(URL.revokeObjectURL);
   }, [images]);
 
-  const handleDocsChange = (files: FileList | null) => {
-    if (!files) return;
-    setDocs(Array.from(files).slice(0, 2));
+  const handleAgrementChange = (files: FileList | null) => {
+    setAgrementFile(files?.[0] ?? null);
+  };
+
+  const handleFichierRcChange = (files: FileList | null) => {
+    setFichierRcFile(files?.[0] ?? null);
   };
 
   const handleImageChange = (index: number, file: File | null) => {
@@ -98,20 +102,29 @@ export default function CreerPharmaciePage() {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Documents légaux (Agrément, Registre de Commerce)</label>
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Agrément (Ministère de la Santé)</label>
               <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-200 p-4 text-center transition hover:border-blue-400 hover:bg-blue-50">
                 <input
                   type="file"
                   accept="application/pdf,image/*"
-                  multiple
                   className="sr-only"
-                  onChange={e => handleDocsChange(e.target.files)}
+                  onChange={e => handleAgrementChange(e.target.files)}
                 />
                 <Upload className="mx-auto mb-1 text-slate-400" size={20} />
-                <p className="text-xs text-slate-500">
-                  {docs.length > 0 ? `${docs.length} fichier${docs.length > 1 ? 's' : ''} sélectionné${docs.length > 1 ? 's' : ''}` : 'Cliquer pour téléverser vos documents légaux'}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">PDF, PNG ou JPG. Max 2 fichiers.</p>
+                <p className="text-xs text-slate-500">{agrementFile ? agrementFile.name : 'Cliquer pour téléverser l’agrément'}</p>
+              </label>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">Preuve d'inscription (Registre de Commerce)</label>
+              <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-200 p-4 text-center transition hover:border-blue-400 hover:bg-blue-50">
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  className="sr-only"
+                  onChange={e => handleFichierRcChange(e.target.files)}
+                />
+                <Upload className="mx-auto mb-1 text-slate-400" size={20} />
+                <p className="text-xs text-slate-500">{fichierRcFile ? fichierRcFile.name : 'Cliquer pour téléverser le justificatif RC'}</p>
               </label>
             </div>
 
