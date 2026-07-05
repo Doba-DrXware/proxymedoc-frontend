@@ -277,10 +277,10 @@ export default function AuthPage() {
           longitude: regLongitude,
           horaires: regHoraires,
           estDeGarde: regEstDeGarde,
-          legalDocsCount: legalDocs.length,
+          legalDocsCount: (agrementFile ? 1 : 0) + (fichierRcFile ? 1 : 0),
           pharmacyImagesCount: pharmacyImages.length,
-          documentsUploaded: legalDocs.length > 0,
-          legalDocNames: legalDocs.map(file => file.name),
+          documentsUploaded: Boolean(agrementFile || fichierRcFile),
+          legalDocNames: [agrementFile, fichierRcFile].filter(Boolean).map(file => file!.name),
           password: regPassword,
         };
         body = JSON.stringify(jsonBody);

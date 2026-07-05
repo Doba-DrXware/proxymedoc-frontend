@@ -1,34 +1,112 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { demandesPharmacie, Pharmacie } from '@/lib/data';
-import { useStore } from '@/lib/store-context';
+import { Pharmacie } from '@/lib/data';
 import { Shield, LogOut, CheckCircle, XCircle, FileText, Bot, Users, Building2, Search, TrendingUp } from 'lucide-react';
+
+const mapBackendPharmacy = (p: any): Pharmacie => {
+  const docs = [
+    p.agrementMinsante ? `Agrément Ministère de la Santé|${p.agrementMinsante}` : null,
+    p.fichierRc ? `Fichier d'inscription au Registre de Commerce (RC)|${p.fichierRc}` : null,
+  ].filter(Boolean) as string[];
+
+  return {
+    id: Number(p.id),
+    nom: p.nom ?? '',
+    adresse: p.adresse ?? '',
+    distance: 0,
+    garde: Boolean(p.garde),
+    telephone: p.telephone ?? '',
+    horaires: p.horaires ?? '',
+    statut: p.statut === 'active' ? 'active' : p.statut === 'suspendue' ? 'inactive' : p.statut === 'rejetee' ? 'rejetee' : 'attente',
+    score_ia: p.score_ia ?? 0,
+    latitude: typeof p.latitude === 'number' ? p.latitude : 0,
+    longitude: typeof p.longitude === 'number' ? p.longitude : 0,
+    meds: [],
+    motifSuspension: p.motifSuspension,
+    contact: p.contact ?? '',
+    licence: p.licence ?? '',
+    docs,
+    images: [p.photo1Url, p.photo2Url, p.photo3Url].filter(Boolean) as string[],
+  };
+};
+
+const getDocLabel = (doc: string) => doc.includes('|') ? doc.split('|')[0] : doc;
+const getDocPath = (doc: string) => doc.includes('|') ? doc.split('|')[1] : doc;
 
 export default function AdminPage() {
   const { logout } = useAuth();
-  const { pharmacies, updatePharmacie } = useStore();
   const [tab, setTab] = useState<'demandes' | 'pharmacies' | 'ia'>('demandes');
-  const [demandes, setDemandes] = useState<Pharmacie[]>(demandesPharmacie);
+  const [demandes, setDemandes] = useState<Pharmacie[]>([]);
+  const [pharmacies, setPharmacies] = useState<Pharmacie[]>([]);
   const [selectedDemande, setSelectedDemande] = useState<Pharmacie | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [suspendTarget, setSuspendTarget] = useState<Pharmacie | null>(null);
   const [suspensionReason, setSuspensionReason] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPharmacies = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8080/api/pharmacies');
+      if (!response.ok) throw new Error('Impossible de charger les pharmacies depuis la base de données.');
+      const data = await response.json();
+      const mapped = (data ?? []).map(mapBackendPharmacy);
+      setDemandes(mapped);
+      setPharmacies(mapped);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPharmacies();
+  }, []);
+
+  const updatePharmacyStatus = async (id: number, nextStatus: 'active' | 'inactive' | 'rejetee') => {
+    const backendStatus = nextStatus === 'active' ? 'VALIDEE' : 'SUSPENDUE';
+    try {
+      const response = await fetch(`http://localhost:8080/api/pharmacies/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: backendStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('La mise à jour du statut a échoué.');
+      }
+
+      const data = await response.json();
+      const updated = mapBackendPharmacy(data.pharmacy);
+      const normalized = nextStatus === 'rejetee' ? { ...updated, statut: 'rejetee' as const } : updated;
+
+      setDemandes(prev => {
+        const next = prev.map(d => d.id === id ? normalized : d);
+        const pending = next.filter(d => d.statut === 'attente');
+        setCurrentIndex(i => Math.min(i, Math.max(0, pending.length - 1)));
+        return next;
+      });
+      setPharmacies(prev => prev.map(ph => ph.id === id ? normalized : ph));
+      setError(null);
+      return normalized;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue.');
+      return null;
+    }
+  };
 
   const valider = (id: number) => {
-    const newDemandes = demandes.map(d => d.id === id ? { ...d, statut: 'active' as const } : d);
-    setDemandes(newDemandes);
-    const pending = newDemandes.filter(d => d.statut === 'attente');
-    setCurrentIndex(i => Math.min(i, Math.max(0, pending.length - 1)));
+    void updatePharmacyStatus(id, 'active');
   };
 
   const rejeter = (id: number) => {
-    const newDemandes = demandes.map(d => d.id === id ? { ...d, statut: 'rejetee' as const } : d);
-    setDemandes(newDemandes);
-    const pending = newDemandes.filter(d => d.statut === 'attente');
-    setCurrentIndex(i => Math.min(i, Math.max(0, pending.length - 1)));
+    void updatePharmacyStatus(id, 'rejetee');
   };
 
   const startSuspendPharmacie = (id: number) => {
@@ -40,10 +118,7 @@ export default function AdminPage() {
 
   const confirmSuspendPharmacie = () => {
     if (!suspendTarget) return;
-    updatePharmacie(suspendTarget.id, {
-      statut: 'inactive',
-      motifSuspension: suspensionReason.trim() || 'Motif non précisé',
-    });
+    void updatePharmacyStatus(suspendTarget.id, 'inactive');
     setSuspendTarget(null);
     setSuspensionReason('');
   };
@@ -60,11 +135,25 @@ export default function AdminPage() {
       startSuspendPharmacie(id);
       return;
     }
-    updatePharmacie(id, { statut: 'active', motifSuspension: undefined });
+    void updatePharmacyStatus(id, 'active');
   };
 
   const enAttente = demandes.filter(d => d.statut === 'attente');
   const validatedPharmacies = pharmacies.filter(ph => ph.statut === 'active' || ph.statut === 'inactive');
+  const previewUrl = selectedDoc ? (selectedDoc.startsWith('http') ? selectedDoc : `/api/uploads/${selectedDoc.replace(/^\//, '')}`) : null;
+  const isPdfPreview = Boolean(previewUrl && previewUrl.toLowerCase().endsWith('.pdf'));
+  const isImagePreview = Boolean(previewUrl && /\.(png|jpe?g|webp|gif|bmp)$/i.test(previewUrl));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center text-slate-600">
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
+          <p className="font-medium">Chargement des demandes depuis la base de données…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedDemande) {
     return (
@@ -89,11 +178,11 @@ export default function AdminPage() {
                   <button
                     key={doc}
                     type="button"
-                    onClick={() => setSelectedDoc(doc)}
+                    onClick={() => setSelectedDoc(getDocPath(doc))}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                   >
                     <span className="flex items-center gap-2">
-                      <FileText size={14} className="text-slate-400" /> {doc}
+                      <FileText size={14} className="text-slate-400" /> {getDocLabel(doc)}
                     </span>
                   </button>
                 ))
@@ -134,6 +223,12 @@ export default function AdminPage() {
       </nav>
 
       <div className="max-w-4xl mx-auto p-6">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { label: 'Pharmacies actives', value: pharmacies.filter(ph => ph.statut === 'active').length, color: 'text-green-600', icon: Building2 },
@@ -212,11 +307,11 @@ export default function AdminPage() {
                             (current.docs || []).map(doc => (
                               <div key={doc} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                                 <span className="flex items-center gap-2 text-slate-700">
-                                  <FileText size={14} className="text-slate-400" /> {doc}
+                                  <FileText size={14} className="text-slate-400" /> {getDocLabel(doc)}
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => { setSelectedDoc(doc); }}
+                                  onClick={() => { setSelectedDoc(getDocPath(doc)); }}
                                   className="text-xs text-blue-600 hover:underline"
                                 >
                                   Voir
@@ -259,26 +354,39 @@ export default function AdminPage() {
           </div>
         )}
 
-        {selectedDoc && (
+        {selectedDoc && previewUrl && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
             onClick={() => { setSelectedDoc(null); }}
           >
-            <div className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-4xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <div>
-                  <p className="text-base font-semibold">Document</p>
+                  <p className="text-base font-semibold">Aperçu du document</p>
                   <p className="text-xs text-slate-500">{selectedDoc}</p>
                 </div>
                 <button type="button" onClick={() => { setSelectedDoc(null); }} className="text-sm text-slate-600 hover:text-slate-900">
                   Fermer
                 </button>
               </div>
-              <div className="p-6">
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-                  <p className="font-medium mb-3">Aperçu du document</p>
-                  <p>Document uploadé : <span className="font-semibold text-slate-900">{selectedDoc}</span></p>
-                  <p className="mt-4 text-xs text-slate-500">Contenu simulé ici. Remplacez cette vue par un aperçu PDF/image réel lorsque l’intégration de fichiers est disponible.</p>
+              <div className="p-4 md:p-6">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-3 md:p-4">
+                  {isPdfPreview ? (
+                    <iframe
+                      src={previewUrl}
+                      title="Aperçu PDF"
+                      className="h-[70vh] w-full rounded-2xl border-0"
+                    />
+                  ) : isImagePreview ? (
+                    <img src={previewUrl} alt="Aperçu du document" className="max-h-[70vh] w-full rounded-2xl object-contain" />
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+                      <p className="font-medium text-slate-800 mb-2">Ce type de document ne peut pas être prévisualisé ici.</p>
+                      <a href={previewUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                        Ouvrir le fichier dans un nouvel onglet
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
