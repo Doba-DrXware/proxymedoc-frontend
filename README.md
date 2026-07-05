@@ -37,3 +37,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 id connexion admin : email:admin@proxymedoc.com/code:proxyadmin
 ids patient : patientx@gmail.com patient
+ids pharmacie : saagen@proxymedoc.com/saaPharma

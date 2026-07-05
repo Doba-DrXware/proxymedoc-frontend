@@ -1,50 +1,322 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useStore } from '@/lib/store-context';
-import { Medicament, getMedicamentCategory, getMedicamentImage } from '@/lib/data';
+import { Medicament, Pharmacie, getMedicamentCategory, getMedicamentImage } from '@/lib/data';
 import { Building2, LogOut, Plus, Trash2, CheckCircle, Clock, Phone, MapPin, Package, Bell, FileText } from 'lucide-react';
+import { PharmacyImage } from '@/components/PharmacyImage';
+
+const mapBackendPharmacy = (payload: any, fallbackId: number | null): Pharmacie => {
+  const meds = Array.isArray(payload?.meds)
+    ? payload.meds.map((med: any) => ({
+        nom: med?.nom ?? 'Médicament',
+        prix: Number(med?.prix ?? 0),
+        stock: Number(med?.stock ?? 0),
+        description: med?.description ?? 'Notice du médicament non disponible.',
+        dispo: Boolean(med?.dispo),
+        image: med?.image ?? '/medicaments/default.svg',
+        categorie: med?.categorie ?? 'autre',
+      }))
+    : [];
+
+  const imageUrls = [
+    payload?.photo1Url,
+    payload?.photo2Url,
+    payload?.photo3Url,
+    ...(Array.isArray(payload?.images) ? payload.images : []),
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  return {
+    id: Number(payload?.id ?? fallbackId ?? 0),
+    nom: payload?.nom ?? 'Pharmacie',
+    adresse: payload?.adresse ?? '',
+    distance: 0,
+    garde: Boolean(payload?.garde),
+    telephone: payload?.telephone ?? '',
+    horaires: payload?.horaires ?? '',
+    statut: payload?.statut === 'active' || payload?.statut === 'inactive' || payload?.statut === 'attente' || payload?.statut === 'rejetee'
+      ? payload.statut
+      : 'attente',
+    score_ia: Number(payload?.score_ia ?? 0),
+    latitude: Number(payload?.latitude ?? 0),
+    longitude: Number(payload?.longitude ?? 0),
+    meds,
+    contact: payload?.contact ?? '',
+    licence: payload?.licence ?? '',
+    images: imageUrls.length > 0 ? imageUrls : undefined,
+  };
+};
+
+const getStatusBadge = (statut?: Pharmacie['statut']) => {
+  switch (statut) {
+    case 'active':
+      return { label: 'Validée', className: 'badge-green' };
+    case 'attente':
+      return { label: 'En attente', className: 'bg-amber-100 text-amber-700' };
+    case 'rejetee':
+      return { label: 'Rejetée', className: 'bg-red-100 text-red-700' };
+    case 'inactive':
+    default:
+      return { label: 'Inactive', className: 'bg-slate-100 text-slate-700' };
+  }
+};
+
+type DaySchedule = { open: string; close: string };
+const dayOrder = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] as const;
+
+const normalizeDaySchedule = (value: unknown): DaySchedule => {
+  if (!value || typeof value !== 'object') {
+    return { open: '', close: '' };
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    open: typeof record.open === 'string' ? record.open.trim() : '',
+    close: typeof record.close === 'string' ? record.close.trim() : '',
+  };
+};
+
+const parseHoraires = (raw?: string | null): Record<string, DaySchedule> => {
+  const defaultSchedules = dayOrder.reduce<Record<string, DaySchedule>>((acc, day) => {
+    acc[day] = { open: '', close: '' };
+    return acc;
+  }, {});
+
+  if (!raw) return defaultSchedules;
+
+  const trimmed = raw.trim();
+  if (!trimmed) return defaultSchedules;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const record = parsed as Record<string, unknown>;
+      for (const day of dayOrder) {
+        const value = record[day];
+        defaultSchedules[day] = normalizeDaySchedule(value);
+      }
+      return defaultSchedules;
+    }
+  } catch {
+    // keep default empty schedules if the payload is not valid JSON
+  }
+
+  return defaultSchedules;
+};
+
+const formatHours = (schedule?: DaySchedule | null) => {
+  if (!schedule) return 'Fermé';
+  const hasOpen = Boolean(schedule.open?.trim());
+  const hasClose = Boolean(schedule.close?.trim());
+  if (!hasOpen && !hasClose) return 'Fermé';
+  if (hasOpen && hasClose) return `${schedule.open} - ${schedule.close}`;
+  return hasOpen ? schedule.open : schedule.close;
+};
+
+const readErrorMessage = async (response: Response) => {
+  const text = await response.text();
+  if (!text) return 'Erreur serveur';
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      const candidate = (parsed as Record<string, unknown>).message;
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate;
+      }
+      const fallback = (parsed as Record<string, unknown>).error;
+      if (typeof fallback === 'string' && fallback.trim()) {
+        return fallback;
+      }
+    }
+  } catch {
+    // fallback to raw text below
+  }
+
+  return text;
+};
 
 export default function PharmaciePage() {
   const { userName, pharmacieId, logout } = useAuth();
   const { pharmacies, updateCatalogue, updateGarde, updatePharmacie } = useStore();
 
   const [tab, setTab] = useState<'profil' | 'catalogue' | 'ordonnances'>('profil');
+  const fallbackPharma = pharmacies.find(p => p.id === pharmacieId) ?? pharmacies[0];
 
-  const pharma = pharmacies.find(p => p.id === pharmacieId) ?? pharmacies[0];
-  const [catalogue, setCatalogue] = useState<Medicament[]>(pharma.meds.map(m => ({ ...m })));
-  const [garde, setGarde] = useState(pharma.garde);
+  const [profile, setProfile] = useState<Pharmacie | null>(fallbackPharma ?? null);
+  const [catalogue, setCatalogue] = useState<Medicament[]>(fallbackPharma?.meds.map(m => ({ ...m })) ?? []);
+  const [garde, setGarde] = useState(Boolean(fallbackPharma?.garde));
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newMed, setNewMed] = useState({ nom: '', prix: '', stock: '' });
 
   const [editing, setEditing] = useState(false);
-  const [lunVen, setLunVen] = useState('');
-  const [sam, setSam] = useState('');
+  const [daySchedules, setDaySchedules] = useState<Record<string, DaySchedule>>(() => parseHoraires(fallbackPharma?.horaires));
+  const [rawHoraires, setRawHoraires] = useState(fallbackPharma?.horaires ?? '');
+  const [selectedDays, setSelectedDays] = useState<(typeof dayOrder)[number][]>([]);
+  const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [phone, setPhone] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [selectedOrdonnance, setSelectedOrdonnance] = useState<{ id: number; createdAt: string; fileUrl: string | null } | null>(null);
 
+  useEffect(() => {
+    const loadProfile = async () => {
+      setLoadingProfile(true);
+      setProfileError(null);
+
+      if (typeof window === 'undefined') {
+        setLoadingProfile(false);
+        return;
+      }
+
+      const token = localStorage.getItem('proxymedoc_token');
+      if (!token) {
+        setLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:8080/api/pharmacies/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        let payload: any = null;
+        try {
+          const text = await res.text();
+          payload = text ? JSON.parse(text) : null;
+        } catch {
+          payload = null;
+        }
+
+        if (!res.ok) {
+          const backendMessage = await readErrorMessage(res);
+          throw new Error(backendMessage || 'Impossible de charger les informations de la pharmacie.');
+        }
+
+        const mapped = mapBackendPharmacy(payload, pharmacieId);
+        setProfile(mapped);
+        setCatalogue(mapped.meds.map(m => ({ ...m })));
+        setGarde(Boolean(mapped.garde));
+        setRawHoraires(mapped.horaires ?? '');
+        setDaySchedules(parseHoraires(mapped.horaires ?? ''));
+      } catch (error) {
+        setProfileError(error instanceof Error ? error.message : 'Erreur inconnue');
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, [pharmacieId]);
+
+  const pharma = profile ?? fallbackPharma;
+  const statusBadge = getStatusBadge(pharma?.statut);
+  const pharmacyImage = pharma?.images?.[0] ?? pharma?.images?.find((url): url is string => Boolean(url?.trim()));
+
+  const toggleDay = (day: (typeof dayOrder)[number]) => {
+    setSelectedDays(prev => {
+      const isSelected = prev.includes(day);
+      const next = isSelected ? prev.filter(item => item !== day) : [...prev, day];
+      const sorted = [...next].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+      if (!isSelected) {
+        setCurrentDayIndex(sorted.indexOf(day));
+      } else {
+        setCurrentDayIndex(prevIndex => Math.max(0, Math.min(prevIndex, sorted.length - 1)));
+      }
+
+      return sorted;
+    });
+  };
+
+  const updateDaySchedule = (day: string, field: 'open' | 'close', value: string) => {
+    setDaySchedules(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value,
+      },
+    }));
+  };
+
+  const goToDay = (step: -1 | 1) => {
+    if (selectedDays.length === 0) return;
+
+    const nextIndex = Math.max(0, Math.min(selectedDays.length - 1, currentDayIndex + step));
+    setCurrentDayIndex(nextIndex);
+  };
+
   const startEdit = () => {
-    setLunVen(pharma.horaires.split('|')[0]?.trim() ?? '');
-    setSam(pharma.horaires.split('|')[1]?.trim() ?? '');
-    setPhone(pharma.telephone ?? '');
-    setLatitude(String(pharma.latitude ?? ''));
-    setLongitude(String(pharma.longitude ?? ''));
+    const initialSchedules = parseHoraires(pharma?.horaires ?? '');
+    const activeDays = dayOrder.filter(day => Boolean(initialSchedules[day]?.open || initialSchedules[day]?.close));
+
+    setDaySchedules(initialSchedules);
+    setSelectedDays(activeDays.length > 0 ? activeDays : dayOrder.filter(day => day === 'Lundi'));
+    setCurrentDayIndex(0);
+    setPhone(pharma?.telephone ?? '');
+    setLatitude(String(pharma?.latitude ?? ''));
+    setLongitude(String(pharma?.longitude ?? ''));
     setEditing(true);
   };
 
-  const saveEdit = () => {
-    const composedHoraires = `${lunVen} | ${sam}`.trim();
-    const patch: Partial<typeof pharma> = {
-      horaires: composedHoraires,
+  const saveEdit = async () => {
+    const nextSchedules = dayOrder.reduce<Record<string, DaySchedule>>((acc, day) => {
+      if (selectedDays.includes(day)) {
+        const schedule = daySchedules[day];
+        acc[day] = schedule ?? { open: '', close: '' };
+      }
+      return acc;
+    }, {});
+
+    const nextRaw = Object.keys(nextSchedules).length > 0 ? JSON.stringify(nextSchedules) : '';
+    setRawHoraires(nextRaw);
+
+    const patch: Partial<Pharmacie> = {
+      horaires: nextRaw,
       telephone: phone,
-      latitude: parseFloat(latitude) || pharma.latitude,
-      longitude: parseFloat(longitude) || pharma.longitude,
+      latitude: parseFloat(latitude) || pharma?.latitude || 0,
+      longitude: parseFloat(longitude) || pharma?.longitude || 0,
     };
-    updatePharmacie(pharma.id, patch);
-    setEditing(false);
+
+    if (pharma?.id) {
+      try {
+        setProfileError(null);
+        const token = localStorage.getItem('proxymedoc_token');
+        const res = await fetch('http://localhost:8080/api/pharmacies/me', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            horaires: nextRaw,
+            telephone: phone,
+            latitude: parseFloat(latitude) || pharma?.latitude || 0,
+            longitude: parseFloat(longitude) || pharma?.longitude || 0,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorPayload = await readErrorMessage(res);
+          throw new Error(errorPayload || 'Échec de la mise à jour');
+        }
+
+        const savedPayload = await res.json();
+        const updated = mapBackendPharmacy(savedPayload?.pharmacy ?? savedPayload, pharma.id);
+        setProfile(updated);
+        setCatalogue(updated.meds.map(m => ({ ...m })));
+        setGarde(Boolean(updated.garde));
+        setDaySchedules(parseHoraires(updated.horaires ?? ''));
+        setRawHoraires(updated.horaires ?? '');
+        updatePharmacie(pharma.id, patch);
+        setEditing(false);
+      } catch (error) {
+        setProfileError(error instanceof Error ? error.message : 'Erreur inconnue');
+      }
+    }
   };
 
   // Catalogue inline edit (prix / stock)
@@ -103,10 +375,42 @@ export default function PharmaciePage() {
     updateCatalogue(pharma.id, updated); // propagation au store global
   };
 
-  const toggleGarde = () => {
+  const toggleGarde = async () => {
+    if (!pharma?.id) return;
+
     const next = !garde;
     setGarde(next);
-    updateGarde(pharma.id, next); // propagation au store global
+    setProfile(prev => prev ? { ...prev, garde: next } : prev);
+    updateGarde(pharma.id, next);
+
+    try {
+      const token = localStorage.getItem('proxymedoc_token');
+      const res = await fetch('http://localhost:8080/api/pharmacies/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ estDeGarde: next }),
+      });
+
+      if (!res.ok) {
+        const errorPayload = await readErrorMessage(res);
+        throw new Error(errorPayload || 'Échec de la mise à jour du statut de garde');
+      }
+
+      const savedPayload = await res.json();
+      const updated = mapBackendPharmacy(savedPayload?.pharmacy ?? savedPayload, pharma.id);
+      setProfile(updated);
+      setGarde(Boolean(updated.garde));
+      updateGarde(pharma.id, Boolean(updated.garde));
+      setProfileError(null);
+    } catch (error) {
+      setGarde(!next);
+      setProfile(prev => prev ? { ...prev, garde: !next } : prev);
+      updateGarde(pharma.id, !next);
+      setProfileError(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
   };
 
   const ordonnances = [
@@ -135,7 +439,7 @@ export default function PharmaciePage() {
             <Building2 className="text-white" size={16} />
           </div>
           <span className="font-semibold text-slate-800">{userName}</span>
-          <span className="badge-green text-xs px-2 py-0.5 rounded-full ml-1">Validée</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ml-1 ${statusBadge.className}`}>{statusBadge.label}</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -160,20 +464,44 @@ export default function PharmaciePage() {
         </div>
 
         {tab === 'profil' && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            {loadingProfile && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                Chargement des informations depuis le backend…
+              </div>
+            )}
+            {profileError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {profileError}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-5">
               <h2 className="font-semibold mb-4">Informations & Statut</h2>
-              <div className="h-28 bg-gradient-to-r from-green-500 to-green-700 rounded-xl flex items-center justify-center mb-4">
-                <Building2 className="text-white opacity-30" size={48} />
+              <div className="h-28 rounded-xl mb-4 overflow-hidden">
+                <PharmacyImage
+                  src={pharmacyImage}
+                  alt={`Photo de ${pharma?.nom || 'la pharmacie'}`}
+                  className="w-full h-full object-cover"
+                  fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-r from-green-500 to-green-700 text-white"
+                />
+              </div>
+              <div className="mb-3">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Nom</p>
+                <p className="font-semibold text-slate-800">{pharma?.nom || 'Pharmacie'}</p>
               </div>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
                   <span className="text-slate-400 flex items-center gap-1"><MapPin size={13} /> Adresse</span>
-                  <span className="font-medium">{pharma.adresse}</span>
+                  <span className="font-medium">{pharma?.adresse || 'Non renseignée'}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
                   <span className="text-slate-400 flex items-center gap-1"><Phone size={13} /> Téléphone</span>
-                  <span className="font-medium">{pharma.telephone}</span>
+                  <span className="font-medium">{pharma?.telephone || 'Non renseigné'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                  <span className="text-slate-400">Licence</span>
+                  <span className="font-medium">{pharma?.licence || 'Non renseignée'}</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-slate-400">Statut de garde</span>
@@ -192,28 +520,84 @@ export default function PharmaciePage() {
               <div className="space-y-2 text-sm mb-4">
                 {!editing ? (
                   <>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
-                      <span className="text-slate-400">Lun – Ven</span>
-                      <span className={`font-medium`}>{pharma.horaires.split('|')[0]?.trim() ?? ''}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
-                      <span className="text-slate-400">Samedi</span>
-                      <span className={`font-medium`}>{pharma.horaires.split('|')[1]?.trim() ?? ''}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
-                      <span className="text-slate-400">Dimanche</span>
-                      <span className={`font-medium text-red-500`}>Fermé</span>
-                    </div>
+                    {dayOrder.map((day) => {
+                      const schedule = daySchedules[day];
+                      return (
+                        <div key={day} className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
+                          <span className="text-slate-400">{day}</span>
+                          <span className={`font-medium ${!schedule?.open && !schedule?.close ? 'text-red-500' : ''}`}>
+                            {formatHours(schedule)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <div>
-                      <label className="field-label">Lun–Ven</label>
-                      <input value={lunVen} onChange={e => setLunVen(e.target.value)} className="input-field" />
-                    </div>
-                    <div>
-                      <label className="field-label">Samedi</label>
-                      <input value={sam} onChange={e => setSam(e.target.value)} className="input-field" />
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex flex-wrap gap-2">
+                        {dayOrder.map(day => {
+                          const active = selectedDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => toggleDay(day)}
+                              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${active ? 'border-green-600 bg-green-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-green-300'}`}
+                            >
+                              {day.slice(0, 3)}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">Parcours par jour</p>
+                            <p className="text-xs text-slate-500">Sélectionnez les jours actifs puis renseignez les horaires.</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => goToDay(-1)} disabled={selectedDays.length === 0 || currentDayIndex === 0} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
+                              Précédent
+                            </button>
+                            <button type="button" onClick={() => goToDay(1)} disabled={selectedDays.length === 0 || currentDayIndex === selectedDays.length - 1} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
+                              Suivant
+                            </button>
+                          </div>
+                        </div>
+
+                        {selectedDays.length > 0 && currentDayIndex < selectedDays.length ? (
+                          <>
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-slate-700">{selectedDays[currentDayIndex]}</span>
+                              <span className="text-xs text-slate-500">{currentDayIndex + 1}/{selectedDays.length}</span>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <label className="text-sm text-slate-600">
+                                <span className="mb-1 block text-xs font-medium text-slate-500">Ouverture</span>
+                                <input
+                                  type="time"
+                                  value={daySchedules[selectedDays[currentDayIndex]]?.open ?? ''}
+                                  onChange={(e) => updateDaySchedule(selectedDays[currentDayIndex], 'open', e.target.value)}
+                                  className="input-field"
+                                />
+                              </label>
+                              <label className="text-sm text-slate-600">
+                                <span className="mb-1 block text-xs font-medium text-slate-500">Fermeture</span>
+                                <input
+                                  type="time"
+                                  value={daySchedules[selectedDays[currentDayIndex]]?.close ?? ''}
+                                  onChange={(e) => updateDaySchedule(selectedDays[currentDayIndex], 'close', e.target.value)}
+                                  className="input-field"
+                                />
+                              </label>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-slate-500">Sélectionnez au moins un jour ouvrable.</p>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="field-label">Téléphone</label>
@@ -242,9 +626,10 @@ export default function PharmaciePage() {
               <div className="mt-4 bg-slate-50 rounded-xl p-3">
                 <p className="text-xs text-slate-400 mb-2">Localisation GPS</p>
                 <div className="bg-white border border-slate-200 rounded-lg h-16 flex items-center justify-center text-xs text-slate-400">
-                  <MapPin size={14} className="mr-1" /> {pharma.latitude}°N, {pharma.longitude}°E
+                  <MapPin size={14} className="mr-1" /> {pharma?.latitude ?? 0}°N, {pharma?.longitude ?? 0}°E
                 </div>
               </div>
+            </div>
             </div>
           </div>
         )}
