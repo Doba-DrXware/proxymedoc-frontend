@@ -11,6 +11,9 @@ const mapBackendPharmacy = (p: any): Pharmacie => {
     p.fichierRc ? `Fichier d'inscription au Registre de Commerce (RC)|${p.fichierRc}` : null,
   ].filter(Boolean) as string[];
 
+  const rawStatus = typeof p.statut === 'string' ? p.statut.toUpperCase() : '';
+  const normalizedStatus = rawStatus === 'VALIDEE' || rawStatus === 'ACTIVE' ? 'active' : rawStatus === 'SUSPENDUE' || rawStatus === 'INACTIVE' ? 'inactive' : rawStatus === 'REJETEE' ? 'rejetee' : 'attente';
+
   return {
     id: Number(p.id),
     nom: p.nom ?? '',
@@ -19,7 +22,7 @@ const mapBackendPharmacy = (p: any): Pharmacie => {
     garde: Boolean(p.garde),
     telephone: p.telephone ?? '',
     horaires: p.horaires ?? '',
-    statut: p.statut === 'active' ? 'active' : p.statut === 'suspendue' ? 'inactive' : p.statut === 'rejetee' ? 'rejetee' : 'attente',
+    statut: normalizedStatus,
     score_ia: p.score_ia ?? 0,
     latitude: typeof p.latitude === 'number' ? p.latitude : 0,
     longitude: typeof p.longitude === 'number' ? p.longitude : 0,
@@ -47,6 +50,7 @@ export default function AdminPage() {
   const [suspensionReason, setSuspensionReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({ patients: 0, searches30d: 0 });
 
   const loadPharmacies = async () => {
     try {
@@ -56,12 +60,21 @@ export default function AdminPage() {
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
-      const response = await fetch('http://localhost:8081/api/pharmacies', { headers });
-      if (!response.ok) throw new Error('Impossible de charger les pharmacies depuis la base de données.');
-      const data = await response.json();
-      const mapped = (data ?? []).map(mapBackendPharmacy);
+      const [pharmaciesResponse, statsResponse] = await Promise.all([
+        fetch('/api/backend/pharmacies', { headers }).catch(() => null),
+        fetch('/api/backend/admin/stats', { headers }).catch(() => null),
+      ]);
+
+      const pharmaciesData = pharmaciesResponse?.ok ? await pharmaciesResponse.json().catch(() => null) : null;
+      const statsData = statsResponse?.ok ? await statsResponse.json().catch(() => null) : null;
+
+      const mapped = (pharmaciesData ?? []).map(mapBackendPharmacy);
       setDemandes(mapped);
       setPharmacies(mapped);
+      setStats({
+        patients: Number(statsData?.patients ?? statsData?.patientCount ?? 0),
+        searches30d: Number(statsData?.searches30d ?? statsData?.searches ?? 0),
+      });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue.');
@@ -82,7 +95,7 @@ export default function AdminPage() {
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
-      const response = await fetch(`http://localhost:8081/api/pharmacies/${id}/status`, {
+      const response = await fetch(`/api/backend/pharmacies/${id}/status`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ statut: backendStatus }),
@@ -243,8 +256,8 @@ export default function AdminPage() {
           {[
             { label: 'Pharmacies actives', value: pharmacies.filter(ph => ph.statut === 'active').length, color: 'text-green-600', icon: Building2 },
             { label: 'En attente', value: enAttente.length, color: 'text-yellow-600', icon: Search },
-            { label: 'Patients inscrits', value: '1 248', color: 'text-blue-700', icon: Users },
-            { label: 'Recherches (30j)', value: '3 671', color: 'text-purple-700', icon: TrendingUp },
+            { label: 'Patients inscrits', value: stats.patients.toLocaleString('fr-FR'), color: 'text-blue-700', icon: Users },
+            { label: 'Recherches (30j)', value: stats.searches30d.toLocaleString('fr-FR'), color: 'text-purple-700', icon: TrendingUp },
           ].map(({ label, value, color, icon: Icon }) => (
             <div key={label} className="bg-white rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-1">
