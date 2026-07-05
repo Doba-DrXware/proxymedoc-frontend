@@ -51,7 +51,12 @@ export default function AdminPage() {
   const loadPharmacies = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/api/pharmacies');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('proxymedoc_token') : null;
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch('http://localhost:8081/api/pharmacies', { headers });
       if (!response.ok) throw new Error('Impossible de charger les pharmacies depuis la base de données.');
       const data = await response.json();
       const mapped = (data ?? []).map(mapBackendPharmacy);
@@ -70,11 +75,16 @@ export default function AdminPage() {
   }, []);
 
   const updatePharmacyStatus = async (id: number, nextStatus: 'active' | 'inactive' | 'rejetee') => {
-    const backendStatus = nextStatus === 'active' ? 'VALIDEE' : 'SUSPENDUE';
+    const backendStatus = nextStatus === 'active' ? 'VALIDEE' : nextStatus === 'rejetee' ? 'REJETEE' : 'SUSPENDUE';
     try {
-      const response = await fetch(`http://localhost:8080/api/pharmacies/${id}/status`, {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('proxymedoc_token') : null;
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch(`http://localhost:8081/api/pharmacies/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ statut: backendStatus }),
       });
 

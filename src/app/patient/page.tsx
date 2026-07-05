@@ -57,7 +57,7 @@ export default function PatientPage() {
   useEffect(() => {
     const loadPharmacies = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/pharmacies/with-stocks');
+        const res = await fetch('http://localhost:8081/api/pharmacies/with-stocks');
         if (!res.ok) throw new Error('API indisponible');
         const data = await res.json();
         const mapped = (data || []).map((ph: any) => ({
@@ -183,7 +183,7 @@ export default function PatientPage() {
 
     try {
       const params = new URLSearchParams({ q: terme, radius: rayon });
-      const response = await fetch(`http://localhost:8080/api/pharmacies/search?${params.toString()}`);
+      const response = await fetch(`http://localhost:8081/api/pharmacies/search?${params.toString()}`);
       if (!response.ok) throw new Error('Recherche indisponible');
       const data = await response.json();
       const mapped = (data || []).map((ph: any) => ({

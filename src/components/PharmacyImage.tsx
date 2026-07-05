@@ -14,7 +14,7 @@ const resolveImageSrc = (value?: string | null) => {
   }
 
   if (trimmed.startsWith('/')) {
-    return `http://localhost:8080${trimmed}`;
+    return `http://localhost:8081${trimmed}`;
   }
 
   return trimmed;
