@@ -13,11 +13,23 @@ export default function AdminPage() {
   const [demandes, setDemandes] = useState<Pharmacie[]>(demandesPharmacie);
   const [selectedDemande, setSelectedDemande] = useState<Pharmacie | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [suspendTarget, setSuspendTarget] = useState<Pharmacie | null>(null);
   const [suspensionReason, setSuspensionReason] = useState('');
 
-  const valider = (id: number) => setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut: 'active' as const } : d));
-  const rejeter = (id: number) => setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut: 'rejetee' as const } : d));
+  const valider = (id: number) => {
+    const newDemandes = demandes.map(d => d.id === id ? { ...d, statut: 'active' as const } : d);
+    setDemandes(newDemandes);
+    const pending = newDemandes.filter(d => d.statut === 'attente');
+    setCurrentIndex(i => Math.min(i, Math.max(0, pending.length - 1)));
+  };
+
+  const rejeter = (id: number) => {
+    const newDemandes = demandes.map(d => d.id === id ? { ...d, statut: 'rejetee' as const } : d);
+    setDemandes(newDemandes);
+    const pending = newDemandes.filter(d => d.statut === 'attente');
+    setCurrentIndex(i => Math.min(i, Math.max(0, pending.length - 1)));
+  };
 
   const startSuspendPharmacie = (id: number) => {
     const ph = pharmacies.find(ph => ph.id === id);
@@ -91,32 +103,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {selectedDoc && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
-              onClick={() => { setSelectedDoc(null); setSelectedDemande(null); }}
-            >
-              <div className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                  <div>
-                    <p className="text-base font-semibold">Document</p>
-                    <p className="text-xs text-slate-500">{selectedDoc}</p>
-                  </div>
-                  <button type="button" onClick={() => { setSelectedDoc(null); setSelectedDemande(null); }} className="text-sm text-slate-600 hover:text-slate-900">
-                    Fermer
-                  </button>
-                </div>
-                <div className="p-6">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-                    <p className="font-medium mb-3">Aperçu du document</p>
-                    <p>Document uploadé : <span className="font-semibold text-slate-900">{selectedDoc}</span></p>
-                    <p className="mt-4 text-xs text-slate-500">Contenu simulé ici. Remplacez cette vue par un aperçu PDF/image réel lorsque l’intégration de fichiers est disponible.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
             {selectedDemande.statut === 'attente' && (
               <div className="flex gap-3">
                 <button onClick={() => { valider(selectedDemande.id); setSelectedDemande(null); }} className="flex-1 py-2.5 btn-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2">
@@ -186,46 +172,78 @@ export default function AdminPage() {
                 <p>Aucune demande en attente</p>
               </div>
             ) : (
-              enAttente.map(d => (
-                <div key={d.id} className="bg-white rounded-2xl border border-slate-200 p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-slate-800">{d.nom}</h3>
-                      <p className="text-xs text-slate-400">{d.contact} · {d.telephone} · {d.adresse}</p>
-                      <p className="text-xs text-slate-400">Licence : {d.licence}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-3">
-                    {(d.docs || []).map(doc => (
-                      <div key={doc} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                        <span className="flex items-center gap-2 text-slate-700">
-                          <FileText size={14} className="text-slate-400" /> {doc}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedDemande(d); setSelectedDoc(doc); }}
-                          className="text-xs text-blue-600 hover:underline"
-                        >
-                          Voir
-                        </button>
+              <div className="relative">
+                {(() => {
+                  const current = enAttente[currentIndex];
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="text-sm text-slate-500">Demande {currentIndex + 1} sur {enAttente.length}</div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentIndex(i => Math.max(i - 1, 0))}
+                            disabled={currentIndex <= 0}
+                            className={`px-3 py-2 rounded-xl text-sm ${currentIndex <= 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                          >
+                            Précédent
+                          </button>
+                          <button
+                            onClick={() => setCurrentIndex(i => Math.min(i + 1, enAttente.length - 1))}
+                            disabled={currentIndex >= enAttente.length - 1}
+                            className={`px-3 py-2 rounded-xl text-sm ${currentIndex >= enAttente.length - 1 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
+                          >
+                            Suivant
+                          </button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
 
-                  <div className="flex gap-2">
-                    <button onClick={() => valider(d.id)} className="btn-primary text-xs py-1.5 px-3 rounded-lg flex items-center gap-1">
-                      <CheckCircle size={12} /> Valider
-                    </button>
-                    <button onClick={() => rejeter(d.id)} className="text-xs py-1.5 px-3 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-1">
-                      <XCircle size={12} /> Rejeter
-                    </button>
-                    <button onClick={() => setSelectedDemande(d)} className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-1 ml-auto">
-                      <FileText size={12} /> Voir dossier complet
-                    </button>
-                  </div>
-                </div>
-              ))
+                      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-semibold text-slate-800 text-lg">{current.nom}</h3>
+                            <p className="text-xs text-slate-400">{current.contact} · {current.telephone}</p>
+                            <p className="text-xs text-slate-400">{current.adresse}</p>
+                            <p className="text-xs text-slate-400">Licence : {current.licence}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 mb-3">
+                          {(current.docs || []).length > 0 ? (
+                            (current.docs || []).map(doc => (
+                              <div key={doc} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                                <span className="flex items-center gap-2 text-slate-700">
+                                  <FileText size={14} className="text-slate-400" /> {doc}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedDoc(doc); }}
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  Voir
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-slate-500">Aucun document uploadé par cette demande.</div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button onClick={() => { valider(current.id); }} className="btn-primary text-xs py-1.5 px-3 rounded-lg flex items-center gap-1">
+                            <CheckCircle size={12} /> Valider
+                          </button>
+                          <button onClick={() => { rejeter(current.id); }} className="text-xs py-1.5 px-3 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-1">
+                            <XCircle size={12} /> Rejeter
+                          </button>
+                          <button onClick={() => setSelectedDemande(current)} className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-1 ml-auto">
+                            <FileText size={12} /> Voir dossier complet
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
             )}
 
             {demandes.filter(d => d.statut !== 'attente').map(d => (
@@ -238,6 +256,32 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {selectedDoc && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+            onClick={() => { setSelectedDoc(null); }}
+          >
+            <div className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <p className="text-base font-semibold">Document</p>
+                  <p className="text-xs text-slate-500">{selectedDoc}</p>
+                </div>
+                <button type="button" onClick={() => { setSelectedDoc(null); }} className="text-sm text-slate-600 hover:text-slate-900">
+                  Fermer
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
+                  <p className="font-medium mb-3">Aperçu du document</p>
+                  <p>Document uploadé : <span className="font-semibold text-slate-900">{selectedDoc}</span></p>
+                  <p className="mt-4 text-xs text-slate-500">Contenu simulé ici. Remplacez cette vue par un aperçu PDF/image réel lorsque l’intégration de fichiers est disponible.</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
