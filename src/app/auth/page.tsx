@@ -28,7 +28,10 @@ export default function AuthPage() {
   const [regPassword, setRegPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [regName, setRegName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regPharmacyName, setRegPharmacyName] = useState('');
+  const [regPharmacyPhone, setRegPharmacyPhone] = useState('');
   const [regLatitude, setRegLatitude] = useState('');
   const [regLongitude, setRegLongitude] = useState('');
   const [regHoraires, setRegHoraires] = useState('');
@@ -45,13 +48,29 @@ export default function AuthPage() {
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [customizedDays, setCustomizedDays] = useState<Record<string, boolean>>({});
   const [regEstDeGarde, setRegEstDeGarde] = useState(false);
-  const [regContact, setRegContact] = useState('');
   const [legalDocs, setLegalDocs] = useState<File[]>([]);
   const [pharmacyImages, setPharmacyImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
   const dayOrder = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  const syncCommonFields = (field: 'lastName' | 'firstName' | 'phone', value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    if (field === 'lastName' && !regPharmacyName.trim()) {
+      setRegPharmacyName(trimmed);
+    }
+
+    if (field === 'firstName' && !regPharmacyName.trim()) {
+      setRegPharmacyName(trimmed);
+    }
+
+    if (field === 'phone' && !regPharmacyPhone.trim()) {
+      setRegPharmacyPhone(trimmed);
+    }
+  };
 
   const toggleDay = (day: string) => {
     setSelectedDays(prev => {
@@ -178,16 +197,18 @@ export default function AuthPage() {
       if (regRole === 'pharmacie') {
         const formData = new FormData();
         formData.append('role', regRole);
-        formData.append('name', regName);
+        formData.append('nom', regLastName);
+        formData.append('prenom', regFirstName);
         formData.append('email', regEmail);
-        formData.append('phone', regPhone);
+        formData.append('phone', regPharmacyPhone || regPhone);
+        formData.append('pharmacyName', regPharmacyName || `${regFirstName} ${regLastName}`.trim());
+        formData.append('pharmacyPhone', regPharmacyPhone || regPhone);
         formData.append('licence', regLicence);
         formData.append('adresse', regAdresse);
         formData.append('latitude', regLatitude);
         formData.append('longitude', regLongitude);
         formData.append('horaires', regHoraires);
         formData.append('estDeGarde', String(regEstDeGarde));
-        formData.append('contact', regContact);
         formData.append('password', regPassword);
         formData.append('legalDocsCount', String(legalDocs.length));
         formData.append('pharmacyImagesCount', String(pharmacyImages.length));
@@ -198,16 +219,18 @@ export default function AuthPage() {
       } else {
         const jsonBody = {
           role: regRole,
-          name: regName,
+          nom: regLastName,
+          prenom: regFirstName,
           email: regEmail,
-          phone: regPhone,
+          phone: regPharmacyPhone || regPhone,
+          pharmacyName: regPharmacyName || `${regFirstName} ${regLastName}`.trim(),
+          pharmacyPhone: regPharmacyPhone || regPhone,
           licence: regLicence,
           adresse: regAdresse,
           latitude: regLatitude,
           longitude: regLongitude,
           horaires: regHoraires,
           estDeGarde: regEstDeGarde,
-          contact: regContact,
           legalDocsCount: legalDocs.length,
           pharmacyImagesCount: pharmacyImages.length,
           documentsUploaded: legalDocs.length > 0,
@@ -235,7 +258,7 @@ export default function AuthPage() {
         if (regRole === 'patient') {
           // Rely solely on backend response: login only when backend confirms and provides token/profile
           if (data.token && data.user) {
-            login('patient', (data.user?.name ?? regName) || 'Nouveau Patient', data.user?.pharmacieId ?? undefined, data.token);
+            login('patient', (data.user?.name ?? `${regFirstName} ${regLastName}`.trim()) || 'Nouveau Patient', data.user?.pharmacieId ?? undefined, data.token);
           } else {
             // Backend did not provide expected authentication payload — surface error
             setFormErrors({ general: 'Inscription réussie mais aucune session fournie par le serveur. Veuillez vous connecter.' });
@@ -274,7 +297,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
-      <div className="w-full max-w-md">
+      <div className={`w-full ${tab === 'login' ? 'max-w-md' : 'max-w-5xl'}`}>
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Pill className="text-white" size={28} />
@@ -299,7 +322,7 @@ export default function AuthPage() {
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 lg:p-8">
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
@@ -333,31 +356,61 @@ export default function AuthPage() {
                     <option value="pharmacie">Pharmacie</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1.5 font-medium">Nom complet / Raison sociale</label>
-                  <input type="text" value={regName} onChange={e => setRegName(e.target.value)} placeholder="Jean Dupont" className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1.5 font-medium">Email</label>
-                  <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="vous@exemple.com" className="input-field" />
-                  {formErrors.email && <p className="text-xs text-red-600 mt-1">{formErrors.email}</p>}
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1.5 font-medium">Téléphone</label>
-                  <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="+237 6XX XXX XXX" className="input-field" />
-                  {formErrors.phone && <p className="text-xs text-red-600 mt-1">{formErrors.phone}</p>}
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 font-medium">Nom</label>
+                    <input type="text" value={regLastName} onBlur={e => syncCommonFields('lastName', e.target.value)} onChange={e => setRegLastName(e.target.value)} placeholder="Dupont" className="input-field" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 font-medium">Prénom</label>
+                    <input type="text" value={regFirstName} onBlur={e => syncCommonFields('firstName', e.target.value)} onChange={e => setRegFirstName(e.target.value)} placeholder="Jean" className="input-field" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 font-medium">Email</label>
+                    <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="vous@exemple.com" className="input-field" />
+                    {formErrors.email && <p className="text-xs text-red-600 mt-1">{formErrors.email}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 font-medium">Téléphone</label>
+                    <input type="tel" value={regPhone} onBlur={e => syncCommonFields('phone', e.target.value)} onChange={e => setRegPhone(e.target.value)} placeholder="+237 6XX XXX XXX" className="input-field" />
+                    {formErrors.phone && <p className="text-xs text-red-600 mt-1">{formErrors.phone}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 font-medium">Mot de passe</label>
+                    <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="••••••••" className="input-field" />
+                    {formErrors.password && <p className="text-xs text-red-600 mt-1">{formErrors.password}</p>}
+                  </div>
                 </div>
                 {regRole === 'pharmacie' && (
                   <>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Numéro de licence pharmaceutique</label>
-                      <input type="text" value={regLicence} onChange={e => setRegLicence(e.target.value)} placeholder="LP-2024-XXXXX" className="input-field" />
-                      {formErrors.licence && <p className="text-xs text-red-600 mt-1">{formErrors.licence}</p>}
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm text-slate-600">
+                        Les informations ci-dessus seront utilisées pour créer le compte du pharmacien, puis la pharmacie sera associée à ce profil.
+                      </p>
                     </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Adresse de la pharmacie</label>
-                      <input type="text" value={regAdresse} onChange={e => setRegAdresse(e.target.value)} placeholder="Quartier, Ville" className="input-field" />
-                      {formErrors.adresse && <p className="text-xs text-red-600 mt-1">{formErrors.adresse}</p>}
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <h3 className="mb-3 text-sm font-semibold text-slate-700">Informations de la pharmacie</h3>
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1.5 font-medium">Nom de la pharmacie</label>
+                          <input type="text" value={regPharmacyName} onChange={e => setRegPharmacyName(e.target.value)} placeholder="Pharmacie du Centre" className="input-field" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1.5 font-medium">Téléphone de la pharmacie</label>
+                          <input type="tel" value={regPharmacyPhone} onChange={e => setRegPharmacyPhone(e.target.value)} placeholder="+237 6XX XXX XXX" className="input-field" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1.5 font-medium">Numéro de licence pharmaceutique</label>
+                          <input type="text" value={regLicence} onChange={e => setRegLicence(e.target.value)} placeholder="LP-2024-XXXXX" className="input-field" />
+                          {formErrors.licence && <p className="text-xs text-red-600 mt-1">{formErrors.licence}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1.5 font-medium">Adresse de la pharmacie</label>
+                          <input type="text" value={regAdresse} onChange={e => setRegAdresse(e.target.value)} placeholder="Quartier, Ville" className="input-field" />
+                          {formErrors.adresse && <p className="text-xs text-red-600 mt-1">{formErrors.adresse}</p>}
+                        </div>
+                      </div>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <button
@@ -448,10 +501,6 @@ export default function AuthPage() {
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1.5 font-medium">Contact principal</label>
-                      <input type="text" value={regContact} onChange={e => setRegContact(e.target.value)} placeholder="Nom du responsable / contact" className="input-field" />
-                    </div>
                     <label className="flex items-center gap-2 text-sm text-slate-600">
                       <input type="checkbox" checked={regEstDeGarde} onChange={e => setRegEstDeGarde(e.target.checked)} className="rounded border-slate-300" />
                       Pharmacie de garde
@@ -522,11 +571,6 @@ export default function AuthPage() {
                     </div>
                   </>
                 )}
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1.5 font-medium">Mot de passe</label>
-                  <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="••••••••" className="input-field" />
-                  {formErrors.password && <p className="text-xs text-red-600 mt-1">{formErrors.password}</p>}
-                </div>
                 {formErrors.general && (
                   <p className="text-xs text-red-600 text-center">{formErrors.general}</p>
                 )}
