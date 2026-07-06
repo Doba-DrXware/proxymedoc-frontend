@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useStore } from '@/lib/store-context';
-import { Pharmacie } from '@/lib/data';
+import { Pharmacie, Medicament } from '@/lib/data';
 import MedicamentCard from '@/components/MedicamentCard';
 import { Pill, LogOut, Search, Phone, MapPin, Clock, ChevronRight, CheckCircle, Upload, ShoppingBag, Trash2, User, FileText } from 'lucide-react';
 
@@ -41,6 +41,13 @@ interface MedicamentMatch {
   };
 }
 
+interface MedicamentSuggestion {
+  id?: number;
+  nom: string;
+  dosage?: string;
+  formeGalenique?: string;
+}
+
 interface SearchState {
   medInput: string;
   medicamentRecherche: string;
@@ -51,6 +58,10 @@ interface SearchState {
   searched: boolean;
   sortBy: SortOption;
   selectedMedicament: string | null;
+  selectedMedicamentDetails: {
+    dosage?: string;
+    formeGalenique?: string;
+  };
   tab: 'recherche' | 'panier' | 'historique' | 'profil';
 }
 
@@ -61,29 +72,53 @@ export default function PatientPage() {
   const { pharmacies: localPharmacies, cart, removeFromCart } = useStore();
   const router = useRouter();
 
-  const [storedSearchState] = useState<SearchState | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      return JSON.parse(window.sessionStorage.getItem(SEARCH_STATE_KEY) || 'null');
-    } catch {
-      return null;
-    }
-  });
+  const [hydratedState, setHydratedState] = useState<SearchState | null>(null);
 
-  const [tab, setTab] = useState<'recherche' | 'panier' | 'historique' | 'profil'>(storedSearchState?.tab ?? 'recherche');
-  const [medInput, setMedInput] = useState(storedSearchState?.medInput ?? '');
-  const [medicamentRecherche, setMedicamentRecherche] = useState(storedSearchState?.medicamentRecherche ?? '');
-  const [localisation, setLocalisation] = useState(storedSearchState?.localisation ?? 'Bastos, Yaoundé');
-  const [rayon, setRayon] = useState(storedSearchState?.rayon ?? '3');
-  const [ordoUploaded, setOrdoUploaded] = useState(storedSearchState?.ordoUploaded ?? false);
-  const [resultats, setResultats] = useState<MedicamentMatch[]>(storedSearchState?.resultats ?? []);
-  const [searched, setSearched] = useState(storedSearchState?.searched ?? false);
-  const [sortBy, setSortBy] = useState<SortOption>(storedSearchState?.sortBy ?? 'optimise');
-  const [selectedMedicament, setSelectedMedicament] = useState<string | null>(storedSearchState?.selectedMedicament ?? null);
+  const [tab, setTab] = useState<'recherche' | 'panier' | 'historique' | 'profil'>('recherche');
+  const [medInput, setMedInput] = useState('');
+  const [medicamentRecherche, setMedicamentRecherche] = useState('');
+  const [localisation, setLocalisation] = useState('Bastos, Yaoundé');
+  const [rayon, setRayon] = useState('3');
+  const [ordoUploaded, setOrdoUploaded] = useState(false);
+  const [resultats, setResultats] = useState<MedicamentMatch[]>([]);
+  const [searched, setSearched] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('optimise');
+  const [selectedMedicament, setSelectedMedicament] = useState<string | null>(null);
+  const [selectedMedicamentDetails, setSelectedMedicamentDetails] = useState<{ dosage?: string; formeGalenique?: string }>({});
+  const [medicamentSuggestions, setMedicamentSuggestions] = useState<MedicamentSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [selectedPharma, setSelectedPharma] = useState<Pharmacie | null>(null);
   const [ordoExpanded, setOrdoExpanded] = useState(false);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>(localPharmacies);
   const [loadingPharmacies, setLoadingPharmacies] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = JSON.parse(window.sessionStorage.getItem(SEARCH_STATE_KEY) || 'null') as SearchState | null;
+      if (stored) {
+        setHydratedState(stored);
+      }
+    } catch {
+      // ignore invalid stored state
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedState) return;
+
+    setTab(hydratedState.tab ?? 'recherche');
+    setMedInput(hydratedState.medInput ?? '');
+    setMedicamentRecherche(hydratedState.medicamentRecherche ?? '');
+    setLocalisation(hydratedState.localisation ?? 'Bastos, Yaoundé');
+    setRayon(hydratedState.rayon ?? '3');
+    setOrdoUploaded(hydratedState.ordoUploaded ?? false);
+    setResultats(hydratedState.resultats ?? []);
+    setSearched(hydratedState.searched ?? false);
+    setSortBy(hydratedState.sortBy ?? 'optimise');
+    setSelectedMedicament(hydratedState.selectedMedicament ?? null);
+    setSelectedMedicamentDetails(hydratedState.selectedMedicamentDetails ?? {});
+  }, [hydratedState]);
 
   useEffect(() => {
     const loadPharmacies = async () => {
@@ -104,7 +139,11 @@ export default function PatientPage() {
           latitude: ph.latitude || 0,
           longitude: ph.longitude || 0,
           meds: (ph.meds || []).map((med: any) => ({
+            id: med.id,
             nom: med.nom,
+            denomination: med.denomination ?? med.nom,
+            formeGalenique: med.formeGalenique ?? '',
+            dosage: med.dosage ?? '',
             prix: Number(med.prix ?? 0),
             stock: Number(med.stock ?? 0),
             description: med.description || 'Description indisponible',
@@ -126,22 +165,43 @@ export default function PatientPage() {
     loadPharmacies();
   }, [localPharmacies]);
 
-  const medicamentSuggestions = medicamentRecherche.trim()
-    ? Array.from(new Set(
-      pharmacies.flatMap(ph =>
-        ph.meds
-          .filter(m => m.nom.toLowerCase().includes(medicamentRecherche.trim().toLowerCase()))
-          .map(m => m.nom)
-      )
-    )).sort()
-    : [];
+  useEffect(() => {
+    if (!medicamentRecherche.trim() || selectedMedicament) {
+      setMedicamentSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const query = encodeURIComponent(medicamentRecherche.trim());
+    setSuggestionsLoading(true);
+
+    fetch(`http://localhost:8081/api/medicaments/search-advanced?q=${query}`, { signal: controller.signal })
+      .then(res => res.ok ? res.json() : [])
+      .then((data: any[]) => {
+        const suggestions = (data || []).map(item => ({
+          id: item.id,
+          nom: item.denomination ?? item.nom ?? '',
+          dosage: item.dosage ?? '',
+          formeGalenique: item.formeGalenique ?? '',
+        }));
+        setMedicamentSuggestions(suggestions);
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setMedicamentSuggestions([]);
+        }
+      })
+      .finally(() => setSuggestionsLoading(false));
+
+    return () => controller.abort();
+  }, [medicamentRecherche, selectedMedicament]);
 
   const normalizeText = (value: string) => value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
 
-  const extractNumbers = (value: string) => {
+  const extractNumbers = (value: string): string[] => {
     const matches = value.match(/\d+/g);
     return matches ?? [];
   };
@@ -226,7 +286,6 @@ export default function PatientPage() {
 
   const handleSort = (by: SortOption) => {
     setSortBy(by);
-    setResultats(prev => sortPharmacies(prev, by));
   };
 
   useEffect(() => {
@@ -242,11 +301,18 @@ export default function PatientPage() {
       searched,
       sortBy,
       selectedMedicament,
+      selectedMedicamentDetails,
       tab,
     };
 
     window.sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(savedState));
   }, [medInput, medicamentRecherche, localisation, rayon, ordoUploaded, resultats, searched, sortBy, selectedMedicament, tab]);
+
+  const buildMedicamentSearchQuery = (med: MedicamentSuggestion) => {
+    return [med.nom, med.dosage, med.formeGalenique]
+      .filter(Boolean)
+      .join(' ');
+  };
 
   const chercherPharmaciesPourMedicament = async (termeRecherche: string) => {
     const terme = termeRecherche.trim();
@@ -271,8 +337,8 @@ export default function PatientPage() {
             return null;
           }
 
-          const dosageMatch = queryNumbers.length > 0 && med.dosage && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
-          return buildMedicamentMatch(ph, med, dosageMatch);
+          const dosageMatch = queryNumbers.length > 0 && med.dosage != null && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
+          return buildMedicamentMatch(ph, med, Boolean(dosageMatch));
         }).filter(Boolean)
       ) as MedicamentMatch[];
 
@@ -286,8 +352,8 @@ export default function PatientPage() {
             return null;
           }
 
-          const dosageMatch = queryNumbers.length > 0 && med.dosage && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
-          return buildMedicamentMatch(ph, med, dosageMatch);
+          const dosageMatch = queryNumbers.length > 0 && med.dosage != null && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
+          return buildMedicamentMatch(ph, med, Boolean(dosageMatch));
         }).filter(Boolean)
       ) as MedicamentMatch[];
 
@@ -296,10 +362,12 @@ export default function PatientPage() {
     }
   };
 
-  const sélectionnerMedicament = (nom: string) => {
-    setSelectedMedicament(nom);
-    setMedicamentRecherche(nom);
-    void chercherPharmaciesPourMedicament(nom);
+  const sélectionnerMedicament = (med: MedicamentSuggestion) => {
+    const query = buildMedicamentSearchQuery(med);
+    setSelectedMedicament(med.nom);
+    setSelectedMedicamentDetails({ dosage: med.dosage, formeGalenique: med.formeGalenique });
+    setMedicamentRecherche(query);
+    void chercherPharmaciesPourMedicament(query);
   };
 
   const rechercherParMedicament = () => {
@@ -419,26 +487,43 @@ export default function PatientPage() {
 
               {medicamentSuggestions.length > 0 && !selectedMedicament && (
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {medicamentSuggestions.map((nom, index) => (
+                  {medicamentSuggestions.map((med, index) => (
                     <button
-                      key={index}
-                      onClick={() => sélectionnerMedicament(nom)}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-100"
+                      key={`${med.nom}-${med.dosage}-${med.formeGalenique}-${index}`}
+                      onClick={() => sélectionnerMedicament(med)}
+                      className="rounded-xl border border-slate-200 px-3 py-3 text-left text-sm hover:bg-slate-100"
                     >
-                      {nom}
+                      <div className="font-semibold text-slate-800">{med.nom}</div>
+                      {(med.dosage || med.formeGalenique) && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          {med.dosage && <span>{med.dosage}</span>}
+                          {med.dosage && med.formeGalenique && <span> · </span>}
+                          {med.formeGalenique && <span>{med.formeGalenique}</span>}
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
               )}
 
               {selectedMedicament && (
-                <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700 flex items-center justify-between gap-3">
+                <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    Médicament sélectionné : <strong>{selectedMedicament}</strong>
+                    <div>
+                      Médicament sélectionné : <strong>{selectedMedicament}</strong>
+                    </div>
+                    {(selectedMedicamentDetails.dosage || selectedMedicamentDetails.formeGalenique) && (
+                      <div className="text-xs text-slate-600 mt-1">
+                        {selectedMedicamentDetails.dosage && <span>{selectedMedicamentDetails.dosage}</span>}
+                        {selectedMedicamentDetails.dosage && selectedMedicamentDetails.formeGalenique && <span> · </span>}
+                        {selectedMedicamentDetails.formeGalenique && <span>{selectedMedicamentDetails.formeGalenique}</span>}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => {
                       setSelectedMedicament(null);
+                      setSelectedMedicamentDetails({});
                       setSearched(false);
                     }}
                     className="text-blue-600 hover:underline"
