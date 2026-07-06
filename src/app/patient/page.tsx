@@ -10,13 +10,44 @@ import { Pill, LogOut, Search, Phone, MapPin, Clock, ChevronRight, CheckCircle, 
 
 type SortOption = 'optimise' | 'distance' | 'prix';
 
+interface MedicamentMatch {
+  pharmacieId: number;
+  pharmacieNom: string;
+  adresse: string;
+  distance: number;
+  garde: boolean;
+  telephone: string;
+  horaires: string;
+  statut: string;
+  score_ia: number;
+  latitude: number;
+  longitude: number;
+  dosageMatch: boolean;
+  med: {
+    id?: number;
+    nom: string;
+    prix: number;
+    stock: number;
+    description: string;
+    dispo?: boolean;
+    image: string;
+    categorie: Medicament['categorie'];
+    denomination?: string;
+    formeGalenique?: string;
+    dosage?: string;
+    exigeOrdonnance?: boolean;
+    imageUrl?: string;
+    noticeUrl?: string;
+  };
+}
+
 interface SearchState {
   medInput: string;
   medicamentRecherche: string;
   localisation: string;
   rayon: string;
   ordoUploaded: boolean;
-  resultats: Pharmacie[];
+  resultats: MedicamentMatch[];
   searched: boolean;
   sortBy: SortOption;
   selectedMedicament: string | null;
@@ -45,7 +76,7 @@ export default function PatientPage() {
   const [localisation, setLocalisation] = useState(storedSearchState?.localisation ?? 'Bastos, Yaoundé');
   const [rayon, setRayon] = useState(storedSearchState?.rayon ?? '3');
   const [ordoUploaded, setOrdoUploaded] = useState(storedSearchState?.ordoUploaded ?? false);
-  const [resultats, setResultats] = useState<Pharmacie[]>(storedSearchState?.resultats ?? []);
+  const [resultats, setResultats] = useState<MedicamentMatch[]>(storedSearchState?.resultats ?? []);
   const [searched, setSearched] = useState(storedSearchState?.searched ?? false);
   const [sortBy, setSortBy] = useState<SortOption>(storedSearchState?.sortBy ?? 'optimise');
   const [selectedMedicament, setSelectedMedicament] = useState<string | null>(storedSearchState?.selectedMedicament ?? null);
@@ -109,6 +140,50 @@ export default function PatientPage() {
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
+
+  const extractNumbers = (value: string) => {
+    const matches = value.match(/\d+/g);
+    return matches ?? [];
+  };
+
+  const buildMedicamentMatch = (pharmacie: any, med: any, dosageMatch: boolean): MedicamentMatch => ({
+    pharmacieId: pharmacie.id,
+    pharmacieNom: pharmacie.nom,
+    adresse: pharmacie.adresse || 'Adresse non renseignée',
+    distance: Number(pharmacie.distance ?? 0),
+    garde: Boolean(pharmacie.garde),
+    telephone: pharmacie.telephone || '+237 6XX XXX XXX',
+    horaires: pharmacie.horaires || 'Horaires non renseignées',
+    statut: pharmacie.statut === 'active' ? 'active' : pharmacie.statut === 'suspendue' ? 'inactive' : 'attente',
+    score_ia: Number(pharmacie.score_ia ?? 0),
+    latitude: Number(pharmacie.latitude ?? 0),
+    longitude: Number(pharmacie.longitude ?? 0),
+    dosageMatch,
+    med: {
+      id: med.id,
+      nom: med.nom,
+      prix: Number(med.prix ?? 0),
+      stock: Number(med.stock ?? 0),
+      description: med.description || 'Description indisponible',
+      dispo: Boolean(med.dispo),
+      image: med.image || '/medicaments/default.svg',
+      categorie: med.categorie || 'autre',
+      denomination: med.denomination,
+      formeGalenique: med.formeGalenique,
+      dosage: med.dosage,
+      exigeOrdonnance: med.exigeOrdonnance,
+      imageUrl: med.imageUrl,
+      noticeUrl: med.noticeUrl,
+    },
+  });
+
+  const matchesDenomination = (denomination: string, normalizedQuery: string, queryTokens: string[]) => {
+    const normalizedDenom = normalizeText(denomination);
+    if (normalizedDenom.includes(normalizedQuery) || normalizedQuery.includes(normalizedDenom)) {
+      return true;
+    }
+    return queryTokens.some(token => token.length >= 3 && normalizedDenom.includes(token));
+  };
 
   const lancerRecherche = async () => {
     if (!medInput.trim() && !ordoUploaded) return;
@@ -181,49 +256,42 @@ export default function PatientPage() {
       return;
     }
 
+    const normalizedTerm = normalizeText(terme);
+    const queryTokens = normalizedTerm.split(/\s+/).filter(token => token.length > 0);
+    const queryNumbers = extractNumbers(normalizedTerm);
+
     try {
       const params = new URLSearchParams({ q: terme, radius: rayon });
       const response = await fetch(`http://localhost:8081/api/pharmacies/search?${params.toString()}`);
       if (!response.ok) throw new Error('Recherche indisponible');
       const data = await response.json();
-      const mapped = (data || []).map((ph: any) => ({
-        id: ph.id,
-        nom: ph.nom,
-        adresse: ph.adresse || 'Adresse non renseignée',
-        distance: 0,
-        garde: Boolean(ph.garde),
-        telephone: ph.telephone || '+237 6XX XXX XXX',
-        horaires: ph.horaires || 'Horaires non renseignés',
-        statut: ph.statut === 'active' ? 'active' : ph.statut === 'suspendue' ? 'inactive' : 'attente',
-        score_ia: ph.score_ia || 0,
-        latitude: ph.latitude || 0,
-        longitude: ph.longitude || 0,
-        meds: (ph.meds || []).filter((med: any) => normalizeText(med.nom).includes(normalizeText(terme))).map((med: any) => ({
-          nom: med.nom,
-          prix: Number(med.prix ?? 0),
-          stock: Number(med.stock ?? 0),
-          description: med.description || 'Description indisponible',
-          dispo: Boolean(med.dispo),
-          image: med.image || '/medicaments/default.svg',
-          categorie: med.categorie || 'autre',
-        })),
-        contact: ph.contact || ph.nom,
-        licence: ph.licence,
-      })) as Pharmacie[];
+      const matched = (data || []).flatMap((ph: any) =>
+        (ph.meds || []).map((med: any) => {
+          if (!med.nom || !matchesDenomination(med.nom, normalizedTerm, queryTokens)) {
+            return null;
+          }
 
-      const filtered = mapped.filter(ph => ph.meds.length > 0);
-      const sorted = sortPharmacies(filtered, sortBy);
+          const dosageMatch = queryNumbers.length > 0 && med.dosage && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
+          return buildMedicamentMatch(ph, med, dosageMatch);
+        }).filter(Boolean)
+      ) as MedicamentMatch[];
+
+      const sorted = matched.sort((a, b) => (a.dosageMatch === b.dosageMatch ? 0 : a.dosageMatch ? -1 : 1));
       setResultats(sorted);
       setSearched(true);
     } catch {
-      const fallback = pharmacies
-        .filter(ph => parseFloat(rayon) >= ph.distance)
-        .map(ph => ({
-          ...ph,
-          meds: ph.meds.filter(m => normalizeText(m.nom).includes(normalizeText(terme))).map(m => ({ ...m, dispo: m.stock > 0 })),
-        }))
-        .filter(ph => ph.meds.length > 0);
-      setResultats(sortPharmacies(fallback, sortBy));
+      const fallbackMatches = pharmacies.flatMap(ph =>
+        ph.meds.map(med => {
+          if (!matchesDenomination(med.nom, normalizedTerm, queryTokens)) {
+            return null;
+          }
+
+          const dosageMatch = queryNumbers.length > 0 && med.dosage && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
+          return buildMedicamentMatch(ph, med, dosageMatch);
+        }).filter(Boolean)
+      ) as MedicamentMatch[];
+
+      setResultats(fallbackMatches.sort((a, b) => (a.dosageMatch === b.dosageMatch ? 0 : a.dosageMatch ? -1 : 1)));
       setSearched(true);
     }
   };
@@ -462,75 +530,63 @@ export default function PatientPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-slate-800">
-                    {resultats.length} pharmacie{resultats.length > 1 ? 's' : ''} trouvée{resultats.length > 1 ? 's' : ''}
+                    {resultats.length} résultat{resultats.length > 1 ? 's' : ''} trouvé{resultats.length > 1 ? 's' : ''}
                   </h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Trier par</span>
-                    <select value={sortBy} onChange={e => handleSort(e.target.value as SortOption)} className="text-xs border border-slate-200 rounded-lg px-2 py-1">
-                      <option value="optimise">Optimisé</option>
-                      <option value="distance">Distance</option>
-                      <option value="prix">Prix total</option>
-                    </select>
-                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {resultats.map((ph, i) => {
-                    const total = ph.meds.reduce((s, m) => s + m.prix, 0);
-                    return (
-                      <div key={ph.id} className={`bg-white rounded-2xl border p-5 transition-shadow hover:shadow-md ${i === 0 ? 'border-blue-300 shadow-sm' : 'border-slate-200'}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center flex-wrap gap-2 mb-1">
-                              {i === 0 && (
-                                <span className="badge-blue text-xs px-2 py-0.5 rounded-full">
-                                  {sortBy === 'optimise' ? 'Meilleur choix' : '+ Proche'}
-                                </span>
-                              )}
-                              <h4 className="font-semibold text-slate-800">{ph.nom}</h4>
-                              {ph.garde && <span className="badge-green text-xs px-2 py-0.5 rounded-full">De garde</span>}
+                {resultats.length === 0 ? (
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+                    Aucun médicament ne correspond à votre recherche.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {resultats.map((item, i) => (
+                      <div key={`${item.pharmacieId}-${item.med.nom}-${i}`} className={`bg-white rounded-3xl border p-5 transition-shadow hover:shadow-md ${item.dosageMatch ? 'border-blue-300 shadow-sm' : 'border-slate-200'}`}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="text-xs text-slate-400">Pharmacie</span>
+                              <span className="font-semibold text-slate-900">{item.pharmacieNom}</span>
+                              {item.garde && <span className="badge-green text-xs px-2 py-0.5 rounded-full">De garde</span>}
                             </div>
-                            <p className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={11} />{ph.adresse}</p>
+                            <p className="text-sm text-slate-500">{item.adresse}</p>
+                            <p className="text-sm text-slate-500 mt-2">Médicament recherché : <strong>{medicamentRecherche}</strong></p>
                           </div>
-                          <div className="text-right ml-3">
-                            <p className="text-lg font-bold text-blue-700">{total.toLocaleString()} <span className="text-xs font-medium">FCFA</span></p>
-                            <p className="text-xs text-slate-400">{ph.distance} km</p>
+                          <div className="text-right">
+                            <p className="text-sm text-slate-500">Disponibilité</p>
+                            <p className={`font-semibold ${item.med.stock > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {item.med.stock > 0 ? `${item.med.stock} en stock` : 'Rupture de stock'}
+                            </p>
+                            <p className="mt-2 text-lg font-semibold text-blue-700">{item.med.prix.toLocaleString()} FCFA</p>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {ph.meds.map((m, mi) => (
-                            <div key={mi} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${m.stock > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${m.stock > 0 ? 'bg-green-500' : 'bg-red-400'}`} />
-                              {m.nom} — <strong>{m.prix.toLocaleString()} FCFA</strong>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-1">
-                            <Phone size={12} /> Appeler
-                          </button>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
+                          <div>
+                            <h4 className="text-lg font-semibold text-slate-900">{item.med.nom}</h4>
+                            <p className="text-sm text-slate-500">{item.med.description.substring(0, 120)}...</p>
+                            {item.med.dosage && (
+                              <p className="text-xs text-slate-400 mt-1">Dosage : {item.med.dosage}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-3 justify-between">
+                            {item.dosageMatch && (
+                              <span className="badge-blue text-xs px-2 py-1 rounded-full inline-flex items-center justify-center">
+                                Match dosage
+                              </span>
+                            )}
                             <button
-                            onClick={() => {
-                              const query = selectedMedicament || medicamentRecherche.trim().toLowerCase();
-                              const medicament = ph.meds.find(m =>
-                                query
-                                  ? m.nom.toLowerCase() === query || m.nom.toLowerCase().includes(query)
-                                  : false
-                              )?.nom || ph.meds[0]?.nom;
-                              if (!medicament) return;
-                              router.push(`/patient/pharmacie/${ph.id}/medicament/${encodeURIComponent(medicament)}`);
-                            }}
-                            className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 flex items-center gap-1 ml-auto"
-                          >
-                            Détails <ChevronRight size={12} />
-                          </button>
+                              onClick={() => router.push(`/patient/pharmacie/${item.pharmacieId}/medicament/${encodeURIComponent(item.med.nom)}`)}
+                              className="text-xs py-2 px-3 rounded-lg border border-slate-200 hover:bg-slate-50"
+                            >
+                              Voir le produit
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
