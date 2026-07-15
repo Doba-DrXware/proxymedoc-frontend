@@ -6,15 +6,15 @@ import { useAuth } from '@/lib/auth-context';
 import { Pill, Eye, EyeOff, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AuthPage() {
-  const { login, role } = useAuth();
+  const { login, role, isInitialized } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (role) {
+    if (isInitialized && role) {
       const target = role === 'admin' ? '/admin' : role === 'pharmacie' ? '/pharmacie' : '/patient';
       router.replace(target);
     }
-  }, [role, router]);
+  }, [isInitialized, role, router]);
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [regRole, setRegRole] = useState<'patient' | 'pharmacie'>('patient');
   const [showPass, setShowPass] = useState(false);

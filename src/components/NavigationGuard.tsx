@@ -7,11 +7,11 @@ import { useAuth } from '@/lib/auth-context';
 export default function NavigationGuard() {
   const pathname = usePathname();
   const router = useRouter();
-  const { role } = useAuth();
+  const { role, isInitialized } = useAuth();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!pathname) return;
+    if (!pathname || !isInitialized) return;
 
     const normalized = pathname.toLowerCase();
 
@@ -36,7 +36,7 @@ export default function NavigationGuard() {
       try { history.replaceState(null, '', '/auth'); } catch {}
       return;
     }
-  }, [pathname, role, router]);
+  }, [pathname, role, isInitialized, router]);
 
   return null;
 }

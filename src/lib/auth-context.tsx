@@ -9,6 +9,7 @@ interface AuthContextType {
   role: Role;
   userName: string;
   pharmacieId: number | null;
+  isInitialized: boolean;
   login: (role: 'patient' | 'pharmacie' | 'admin', name: string, pharmacieId?: number, token?: string) => void;
   logout: () => void;
 }
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   userName: '',
   pharmacieId: null,
+  isInitialized: false,
   login: () => {},
   logout: () => {},
 });
@@ -25,12 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>(null);
   const [userName, setUserName] = useState('');
   const [pharmacieId, setPharmacieId] = useState<number | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
 
   const clearSession = () => {
     setRole(null);
     setUserName('');
     setPharmacieId(null);
+    setIsInitialized(true);
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('proxymedoc_token');
@@ -66,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(userRole);
         setUserName(data.user?.name || data.user?.email || '');
         setPharmacieId(data.user?.pharmacieId ?? null);
+        setIsInitialized(true);
         localStorage.setItem('proxymedoc_profile', JSON.stringify({ role: userRole, name: data.user?.name || data.user?.email || '', pharmacieId: data.user?.pharmacieId ?? null }));
       } catch (e) {
         clearSession();
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(r);
     setUserName(name);
     setPharmacieId(phId ?? null);
+    setIsInitialized(true);
     try {
       if (typeof window !== 'undefined') {
         if (token) {
@@ -116,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ role, userName, pharmacieId, login, logout }}>
+    <AuthContext.Provider value={{ role, userName, pharmacieId, isInitialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
