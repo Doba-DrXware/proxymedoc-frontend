@@ -19,7 +19,7 @@ export const getApiBaseUrl = (): string => {
   }
 
   // Server-side: use BACKEND_URL environment variable
-  return process.env.BACKEND_URL || 'http://localhost:8081/api';
+  return process.env.BACKEND_URL || 'http://localhost:8080/api';
 };
 
 export const buildApiUrl = (endpoint: string): string => {
@@ -37,7 +37,7 @@ export const buildUploadUrl = (uploadPath: string): string => {
   }
 
   // Server-side
-  return `${process.env.BACKEND_URL || 'http://localhost:8081'}/uploads${path}`;
+  return `${process.env.BACKEND_URL || 'http://localhost:8080'}/uploads${path}`;
 };
 
 /**

@@ -211,7 +211,7 @@ export default function PharmaciePage() {
       }
 
       try {
-        const res = await fetch('http://localhost:8081/api/pharmacies/me', {
+        const res = await fetch('http://localhost:8080/api/pharmacies/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -317,7 +317,7 @@ export default function PharmaciePage() {
       try {
         setProfileError(null);
         const token = localStorage.getItem('proxymedoc_token');
-        const res = await fetch('http://localhost:8081/api/pharmacies/me', {
+        const res = await fetch('http://localhost:8080/api/pharmacies/me', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -423,7 +423,7 @@ export default function PharmaciePage() {
         formData.append('notice', noticeFile);
       }
 
-      const res = await fetch('http://localhost:8081/api/medicaments/with-files', {
+      const res = await fetch('http://localhost:8080/api/medicaments/with-files', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
@@ -479,7 +479,7 @@ export default function PharmaciePage() {
 
     try {
       const token = localStorage.getItem('proxymedoc_token');
-      const res = await fetch('http://localhost:8081/api/pharmacies/me', {
+      const res = await fetch('http://localhost:8080/api/pharmacies/me', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

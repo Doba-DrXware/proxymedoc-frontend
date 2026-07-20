@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
     const rawPath = req.nextUrl.pathname.replace(/^\/api\/uploads\/?/, '');
     const normalizedPath = rawPath.replace(/^\/+/, '');
     const backendPath = normalizedPath.startsWith('uploads/') ? normalizedPath : `uploads/${normalizedPath}`;
-    const backendUrl = `http://localhost:8081/${backendPath}`;
+    const backendUrl = `http://localhost:8080/${backendPath}`;
 
     const backendRes = await fetch(backendUrl, { redirect: 'follow' });
     if (!backendRes.ok) {

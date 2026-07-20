@@ -15,6 +15,7 @@ interface MedicamentMatch {
   pharmacieNom: string;
   adresse: string;
   distance: number;
+  distanceSource: string;
   garde: boolean;
   telephone: string;
   horaires: string;
@@ -52,7 +53,6 @@ interface SearchState {
   medInput: string;
   medicamentRecherche: string;
   localisation: string;
-  rayon: string;
   ordoUploaded: boolean;
   resultats: MedicamentMatch[];
   searched: boolean;
@@ -62,6 +62,8 @@ interface SearchState {
     dosage?: string;
     formeGalenique?: string;
   };
+  userPosition: { lat: number; lon: number } | null;
+  geoError: string;
   tab: 'recherche' | 'panier' | 'historique' | 'profil';
 }
 
@@ -78,19 +80,48 @@ export default function PatientPage() {
   const [medInput, setMedInput] = useState('');
   const [medicamentRecherche, setMedicamentRecherche] = useState('');
   const [localisation, setLocalisation] = useState('Bastos, Yaoundé');
-  const [rayon, setRayon] = useState('3');
   const [ordoUploaded, setOrdoUploaded] = useState(false);
   const [resultats, setResultats] = useState<MedicamentMatch[]>([]);
   const [searched, setSearched] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('optimise');
   const [selectedMedicament, setSelectedMedicament] = useState<string | null>(null);
   const [selectedMedicamentDetails, setSelectedMedicamentDetails] = useState<{ dosage?: string; formeGalenique?: string }>({});
+  const [userPosition, setUserPosition] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoError, setGeoError] = useState('');
+  const [geoLoading, setGeoLoading] = useState(true);
   const [medicamentSuggestions, setMedicamentSuggestions] = useState<MedicamentSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [selectedPharma, setSelectedPharma] = useState<Pharmacie | null>(null);
   const [ordoExpanded, setOrdoExpanded] = useState(false);
   const [pharmacies, setPharmacies] = useState<Pharmacie[]>(localPharmacies);
   const [loadingPharmacies, setLoadingPharmacies] = useState(true);
+
+  const locationCoordinates: Record<string, { lat: number; lon: number }> = {
+    'Bastos, Yaoundé': { lat: 3.8667, lon: 11.5167 },
+    'Melen, Yaoundé': { lat: 3.8900, lon: 11.4900 },
+    'Emana, Yaoundé': { lat: 3.7900, lon: 11.5000 },
+    'Mvog-Mbi, Yaoundé': { lat: 3.8648, lon: 11.5181 },
+    'Nlongkak, Yaoundé': { lat: 3.8750, lon: 11.5300 },
+  };
+
+  const getSearchCoordinates = () => {
+    if (userPosition) {
+      return userPosition;
+    }
+    return locationCoordinates[localisation] ?? null;
+  };
+
+  const computeDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const earthRadiusKm = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -111,19 +142,20 @@ export default function PatientPage() {
     setMedInput(hydratedState.medInput ?? '');
     setMedicamentRecherche(hydratedState.medicamentRecherche ?? '');
     setLocalisation(hydratedState.localisation ?? 'Bastos, Yaoundé');
-    setRayon(hydratedState.rayon ?? '3');
     setOrdoUploaded(hydratedState.ordoUploaded ?? false);
     setResultats(hydratedState.resultats ?? []);
     setSearched(hydratedState.searched ?? false);
     setSortBy(hydratedState.sortBy ?? 'optimise');
     setSelectedMedicament(hydratedState.selectedMedicament ?? null);
     setSelectedMedicamentDetails(hydratedState.selectedMedicamentDetails ?? {});
+    setUserPosition(hydratedState.userPosition ?? null);
+    setGeoError(hydratedState.geoError ?? '');
   }, [hydratedState]);
 
   useEffect(() => {
     const loadPharmacies = async () => {
       try {
-        const res = await fetch('http://localhost:8081/api/pharmacies/with-stocks');
+        const res = await fetch('http://localhost:8080/api/pharmacies/with-stocks');
         if (!res.ok) throw new Error('API indisponible');
         const data = await res.json();
         const mapped = (data || []).map((ph: any) => ({
@@ -175,7 +207,7 @@ export default function PatientPage() {
     const query = encodeURIComponent(medicamentRecherche.trim());
     setSuggestionsLoading(true);
 
-    fetch(`http://localhost:8081/api/medicaments/search-advanced?q=${query}`, { signal: controller.signal })
+    fetch(`http://localhost:8080/api/medicaments/search-advanced?q=${query}`, { signal: controller.signal })
       .then(res => res.ok ? res.json() : [])
       .then((data: any[]) => {
         const suggestions = (data || []).map(item => ({
@@ -196,6 +228,34 @@ export default function PatientPage() {
     return () => controller.abort();
   }, [medicamentRecherche, selectedMedicament]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGeoError('La géolocalisation n’est pas disponible.');
+      setGeoLoading(false);
+      return;
+    }
+
+    const onSuccess = (position: GeolocationPosition) => {
+      setUserPosition({
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+      });
+      setGeoError('');
+      setGeoLoading(false);
+    };
+
+    const onError = () => {
+      setGeoError('Impossible de récupérer votre position. Utilisation du lieu sélectionné.');
+      setGeoLoading(false);
+    };
+
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      maximumAge: 5 * 60 * 1000,
+      timeout: 10 * 1000,
+    });
+  }, []);
+
   const normalizeText = (value: string) => value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -206,36 +266,57 @@ export default function PatientPage() {
     return matches ?? [];
   };
 
-  const buildMedicamentMatch = (pharmacie: any, med: any, dosageMatch: boolean): MedicamentMatch => ({
-    pharmacieId: pharmacie.id,
-    pharmacieNom: pharmacie.nom,
-    adresse: pharmacie.adresse || 'Adresse non renseignée',
-    distance: Number(pharmacie.distance ?? 0),
-    garde: Boolean(pharmacie.garde),
-    telephone: pharmacie.telephone || '+237 6XX XXX XXX',
-    horaires: pharmacie.horaires || 'Horaires non renseignées',
-    statut: pharmacie.statut === 'active' ? 'active' : pharmacie.statut === 'suspendue' ? 'inactive' : 'attente',
-    score_ia: Number(pharmacie.score_ia ?? 0),
-    latitude: Number(pharmacie.latitude ?? 0),
-    longitude: Number(pharmacie.longitude ?? 0),
-    dosageMatch,
-    med: {
-      id: med.id,
-      nom: med.nom,
-      prix: Number(med.prix ?? 0),
-      stock: Number(med.stock ?? 0),
-      description: med.description || 'Description indisponible',
-      dispo: Boolean(med.dispo),
-      image: med.image || '/medicaments/default.svg',
-      categorie: med.categorie || 'autre',
-      denomination: med.denomination,
-      formeGalenique: med.formeGalenique,
-      dosage: med.dosage,
-      exigeOrdonnance: med.exigeOrdonnance,
-      imageUrl: med.imageUrl,
-      noticeUrl: med.noticeUrl,
-    },
-  });
+  const buildMedicamentMatch = (pharmacie: any, med: any, dosageMatch: boolean, coords?: { lat: number; lon: number }): MedicamentMatch => {
+    let distance = Number(pharmacie.distance ?? 0);
+    let distanceSource = pharmacie.distanceSource ?? 'unknown';
+    if ((distanceSource === 'unknown' || distanceSource === 'none') && distance > 0) {
+      distanceSource = 'haversine';
+    }
+
+    if ((distanceSource === 'unknown' || distanceSource === 'none') && coords && pharmacie.latitude != null && pharmacie.longitude != null) {
+      distance = computeDistanceKm(coords.lat, coords.lon, Number(pharmacie.latitude), Number(pharmacie.longitude));
+      distanceSource = 'haversine';
+    }
+
+    const pharmacyName = pharmacie?.nom ?? pharmacie?.pharmacieNom ?? pharmacie?.name ?? 'Pharmacie';
+    const pharmacyAddress = pharmacie?.adresse ?? pharmacie?.address ?? pharmacie?.adressePharmacie ?? 'Adresse non renseignée';
+    const pharmacyPhone = pharmacie?.telephone ?? pharmacie?.phone ?? pharmacie?.contact ?? '+237 6XX XXX XXX';
+    const pharmacyHours = pharmacie?.horaires ?? pharmacie?.hours ?? 'Horaires non renseignées';
+    const pharmacyStatus = pharmacie?.statut === 'active' ? 'active' : pharmacie?.statut === 'suspendue' ? 'inactive' : 'attente';
+    const pharmacyGarde = Boolean(pharmacie?.garde ?? pharmacie?.estDeGarde);
+
+    return {
+      pharmacieId: pharmacie.id,
+      pharmacieNom: pharmacyName,
+      adresse: pharmacyAddress,
+      distance,
+      distanceSource,
+      garde: pharmacyGarde,
+      telephone: pharmacyPhone,
+      horaires: pharmacyHours,
+      statut: pharmacyStatus,
+      score_ia: Number(pharmacie.score_ia ?? 0),
+      latitude: Number(pharmacie.latitude ?? 0),
+      longitude: Number(pharmacie.longitude ?? 0),
+      dosageMatch,
+      med: {
+        id: med.id,
+        nom: med.nom,
+        prix: Number(med.prix ?? 0),
+        stock: Number(med.stock ?? 0),
+        description: med.description || 'Description indisponible',
+        dispo: Boolean(med.dispo),
+        image: med.image || '/medicaments/default.svg',
+        categorie: med.categorie || 'autre',
+        denomination: med.denomination,
+        formeGalenique: med.formeGalenique,
+        dosage: med.dosage,
+        exigeOrdonnance: med.exigeOrdonnance,
+        imageUrl: med.imageUrl,
+        noticeUrl: med.noticeUrl,
+      },
+    };
+  };
 
   const matchesDenomination = (denomination: string, normalizedQuery: string, queryTokens: string[]) => {
     const normalizedDenom = normalizeText(denomination);
@@ -295,18 +376,19 @@ export default function PatientPage() {
       medInput,
       medicamentRecherche,
       localisation,
-      rayon,
       ordoUploaded,
       resultats,
       searched,
       sortBy,
       selectedMedicament,
       selectedMedicamentDetails,
+      userPosition,
+      geoError,
       tab,
     };
 
     window.sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(savedState));
-  }, [medInput, medicamentRecherche, localisation, rayon, ordoUploaded, resultats, searched, sortBy, selectedMedicament, tab]);
+  }, [medInput, medicamentRecherche, localisation, ordoUploaded, resultats, searched, sortBy, selectedMedicament, tab]);
 
   const buildMedicamentSearchQuery = (med: MedicamentSuggestion) => {
     return [med.nom, med.dosage, med.formeGalenique]
@@ -327,25 +409,36 @@ export default function PatientPage() {
     const queryNumbers = extractNumbers(normalizedTerm);
 
     try {
-      const params = new URLSearchParams({ q: terme, radius: rayon });
-      const response = await fetch(`http://localhost:8081/api/pharmacies/search?${params.toString()}`);
-      if (!response.ok) throw new Error('Recherche indisponible');
+      const coords = getSearchCoordinates();
+    const params = new URLSearchParams({ q: terme });
+    if (coords) {
+      params.set('lat', String(coords.lat));
+      params.set('lon', String(coords.lon));
+    }
+    const response = await fetch(`http://localhost:8080/api/pharmacies/search?${params.toString()}`);
+    if (!response.ok) throw new Error('Recherche indisponible');
       const data = await response.json();
-      const matched = (data || []).flatMap((ph: any) =>
-        (ph.meds || []).map((med: any) => {
+      const matched = (data || []).flatMap((ph: any) => {
+        const meds = Array.isArray(ph.meds)
+          ? ph.meds
+          : ph.med
+            ? [ph.med]
+            : [];
+        return meds.map((med: any) => {
           if (!med.nom || !matchesDenomination(med.nom, normalizedTerm, queryTokens)) {
             return null;
           }
 
           const dosageMatch = queryNumbers.length > 0 && med.dosage != null && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
-          return buildMedicamentMatch(ph, med, Boolean(dosageMatch));
-        }).filter(Boolean)
-      ) as MedicamentMatch[];
+          return buildMedicamentMatch(ph, med, Boolean(dosageMatch), coords);
+        }).filter(Boolean);
+      }) as MedicamentMatch[];
 
       const sorted = matched.sort((a, b) => (a.dosageMatch === b.dosageMatch ? 0 : a.dosageMatch ? -1 : 1));
       setResultats(sorted);
       setSearched(true);
     } catch {
+      const coords = getSearchCoordinates();
       const fallbackMatches = pharmacies.flatMap(ph =>
         ph.meds.map(med => {
           if (!matchesDenomination(med.nom, normalizedTerm, queryTokens)) {
@@ -353,7 +446,8 @@ export default function PatientPage() {
           }
 
           const dosageMatch = queryNumbers.length > 0 && med.dosage != null && extractNumbers(normalizeText(med.dosage)).some(num => queryNumbers.includes(num));
-          return buildMedicamentMatch(ph, med, Boolean(dosageMatch));
+          const baseMatch = buildMedicamentMatch(ph, med, Boolean(dosageMatch), coords);
+          return baseMatch;
         }).filter(Boolean)
       ) as MedicamentMatch[];
 
@@ -561,15 +655,21 @@ export default function PatientPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="field-label">Rayon de recherche</label>
-                      <select value={rayon} onChange={e => setRayon(e.target.value)} className="input-field">
-                        <option value="1">1 km</option>
-                        <option value="2">2 km</option>
-                        <option value="3">3 km</option>
-                        <option value="5">5 km</option>
-                        <option value="10">10 km</option>
-                      </select>
+                      <label className="field-label">Distance de recherche</label>
+                      <p className="text-sm text-slate-500">Tous les résultats sont maintenant inclus, triés par distance réelle.</p>
                     </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-800 mb-2">Géolocalisation</p>
+                    {geoLoading ? (
+                      <p>Recherche de votre position...</p>
+                    ) : geoError ? (
+                      <p className="text-amber-700">{geoError}</p>
+                    ) : userPosition ? (
+                      <p>Position détectée automatiquement.</p>
+                    ) : (
+                      <p>Utilisation de la localisation sélectionnée.</p>
+                    )}
                   </div>
 
                   <div
@@ -638,11 +738,10 @@ export default function PatientPage() {
                             <p className="text-sm text-slate-500 mt-2">Médicament recherché : <strong>{medicamentRecherche}</strong></p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-slate-500">Disponibilité</p>
-                            <p className={`font-semibold ${item.med.stock > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {item.med.stock > 0 ? `${item.med.stock} en stock` : 'Rupture de stock'}
-                            </p>
                             <p className="mt-2 text-lg font-semibold text-blue-700">{item.med.prix.toLocaleString()} FCFA</p>
+                            <p className="text-sm text-slate-500 mt-1">
+                              Distance : {item.distance?.toFixed(1)} km • Source : {item.distanceSource === 'ors' ? 'ORS' : item.distanceSource === 'haversine' ? 'Haversine' : 'Inconnue'}
+                            </p>
                           </div>
                         </div>
 
@@ -655,11 +754,6 @@ export default function PatientPage() {
                             )}
                           </div>
                           <div className="flex flex-col gap-3 justify-between">
-                            {item.dosageMatch && (
-                              <span className="badge-blue text-xs px-2 py-1 rounded-full inline-flex items-center justify-center">
-                                Match dosage
-                              </span>
-                            )}
                             <button
                               onClick={() => router.push(`/patient/pharmacie/${item.pharmacieId}/medicament/${encodeURIComponent(item.med.nom)}`)}
                               className="text-xs py-2 px-3 rounded-lg border border-slate-200 hover:bg-slate-50"
@@ -767,8 +861,8 @@ export default function PatientPage() {
                   <span className="font-medium text-slate-700">{localisation}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-400">Rayon de recherche</span>
-                  <span className="font-medium text-slate-700">{rayon} km</span>
+                  <span className="text-slate-400">Mode de distance</span>
+                  <span className="font-medium text-slate-700">Distance réelle (ORS/Haversine)</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-slate-400">Ordonnance téléversée</span>

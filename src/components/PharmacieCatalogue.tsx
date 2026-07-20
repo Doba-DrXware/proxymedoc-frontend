@@ -97,7 +97,7 @@ export default function PharmacieCatalogue({ meds, onUpdate }: PharmacieCatalogu
     setFeedback(null);
 
     try {
-      const res = await fetch(`http://localhost:8081/api/medicaments/${medId}`, {
+      const res = await fetch(`http://localhost:8080/api/medicaments/${medId}`, {
         method: 'PUT',
         headers: jsonHeaders(token),
         body: JSON.stringify({
@@ -119,7 +119,7 @@ export default function PharmacieCatalogue({ meds, onUpdate }: PharmacieCatalogu
         throw new Error(text || 'Échec de la mise à jour du médicament');
       }
 
-      const stockRes = await fetch(`http://localhost:8081/api/medicaments/${medId}/stock`, {
+      const stockRes = await fetch(`http://localhost:8080/api/medicaments/${medId}/stock`, {
         method: 'PUT',
         headers: jsonHeaders(token),
         body: JSON.stringify({ quantiteDisponible: stock }),
@@ -164,7 +164,7 @@ export default function PharmacieCatalogue({ meds, onUpdate }: PharmacieCatalogu
     setFeedback(null);
 
     try {
-      const res = await fetch(`http://localhost:8081/api/medicaments/${med.id}/stock`, {
+      const res = await fetch(`http://localhost:8080/api/medicaments/${med.id}/stock`, {
         method: 'DELETE',
         headers: jsonHeaders(token),
       });

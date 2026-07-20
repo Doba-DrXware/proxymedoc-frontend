@@ -7,7 +7,7 @@ export async function POST(req: Request) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      const backendRes = await fetch('http://localhost:8081/api/auth/register', {
+      const backendRes = await fetch('http://localhost:8080/api/auth/register', {
         method: 'POST',
         body: formData,
       });
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const backendRes = await fetch('http://localhost:8081/api/auth/register', {
+    const backendRes = await fetch('http://localhost:8080/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
